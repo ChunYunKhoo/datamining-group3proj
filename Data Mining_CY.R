@@ -37,7 +37,6 @@ library(mlbench)
 #import data
 data <- read.csv("C:/Users/chuny/Documents/GitHub/datamining-group3proj/bank-full.csv", header=TRUE, sep = ";", stringsAsFactors = TRUE)
 str(data)
-str('testing commit')
 
 ##############DATA PREPARATION ############################################
 
