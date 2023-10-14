@@ -96,8 +96,6 @@ results2 <- list()
 set.seed(123)
 folds <- createFolds(data$y,k=5)
 
-rf_models2 <- list()
-
 # Loop through cross-validation folds
 for (i in 1:5) {
   # Create training and test datasets for this fold
@@ -107,11 +105,12 @@ for (i in 1:5) {
   test_fold <- data[folds[[1]], ]
   
   # Apply oversampling to the training fold
+  set.seed(123)
   train_oversampled <- ovun.sample(y~.,data = train_fold,method = "over", N=2*sum(train_fold$y == "no"))$data
+
+  set.seed(123)
   rf_model2 <- randomForest(train_oversampled[,-c(5,12,17)],train_oversampled$y)
-  # Save the model in a list
-  rf_models2[[i]] <- rf_model2
-  
+  # Save the model in a list  
 
   #Evaluate the model on the test fold and store results
   predictions <- predict(rf_model2, newdata = test_fold)
@@ -134,6 +133,8 @@ for (i in 1:5) {
 }
 #results
 results2
+save(results2,"results.rds")
+load("results.rds")
 avg_mcc <- mean(sapply(results2, function(res) res$MCC))
 avg_mcc
 
