@@ -89,9 +89,7 @@ matthews_correlation_coefficient <- function(cm) {
 #without default 
 #without duration
 #mtry = 3
-# Initialize a list to store results
-library(ROCR)
-library(pROC)
+
 results2 <- list()
 
 # Define your cross-validation folds
@@ -123,7 +121,7 @@ for (i in 1:5) {
   #get the roc-auc value
   pred_prob <- predict(rf_model2, newdata = test_fold,type = "prob")
   actual_labels_numeric <- ifelse(actual_labels == "yes", 1, 0)
-  roc_auc <- as.numeric(performance(p, "auc")@y.values[[1]])
+  roc_auc <- Metrics::auc(actual_labels_numeric,pred_prob[,2])
   metrics_cal = rbind(
     c(cm$overall["Accuracy"], 
       cm$byClass["Recall"], 
