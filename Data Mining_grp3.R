@@ -76,15 +76,7 @@ prop.table(table(test_data$y))
 ##############################################################################
 #RANDOM FOREST
 ##########################################################################
-matthews_correlation_coefficient <- function(cm) {
-  tp <- cm[2,2]
-  tn <- cm[1,1]
-  fp <- cm[2,1]
-  fn <- cm[1,2]
-  
-  mcc <- (tp * tn - fp * fn) / sqrt((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn))
-  return(mcc)
-}
+
 ############################################################################
 #without default 
 #without duration
