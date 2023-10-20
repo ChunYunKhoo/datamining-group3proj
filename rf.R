@@ -1,125 +1,33 @@
-library(corrplot)
-library(class)
-library(caret)
-library(dplyr)
-library(Metrics)
-library(e1071)
-library(C50)
-library(gmodels)
-library(randomForest)
-library(ggforce)
-library(tidyverse)
-library(randomForest)
-library(ggplot2)
-library(GGally)
-library(Metrics)
-library(mlbench)
-library(xgboost)
-library(mltools)
-library(ROSE)
-library(ROCR)
-#import data
-setwd('C:/Users/treei/OneDrive/Desktop/Courses/MH6151-Data Mining/project/datamining-group3proj-main')
-data <- read.csv("bank-full.csv", header=TRUE, sep = ";", stringsAsFactors = TRUE)
-str(data)
-
-##############DATA PREPARATION ############################################
-
-#change all integer variables to numeric variables
-features <- colnames(data[,sapply(data,is.integer)])
-str(features)
-
-for(x in features){
-  data[[x]] <- as.numeric(data[[x]])
-}
-
-str(data)
-
-#check for missing values
-summary(data)
-MissingPercentage <- function(datax) {sum(is.na(datax))/length(datax)*100}
-apply(data, 2, MissingPercentage)
-#no missing values
-
-#check for duplicate records
-sum(duplicated(data))
-
-str(data)
-
-summary(data)
-#check distribution of target variable
-prop.table(table(data$y))
-#target variable seems highly imbalanced towards no (> 88%)
-
-
-
-
-set.seed(123)
-split <- sample(1:nrow(data),size = round(0.7 * nrow(data)))
-  
-# Create training and testing sets
-train_data <- data[split, ]
-test_data <- data[-split, ]
-
-#create upsampling training set
-train_up <- caret::upSample(x = train_data %>% select(-y),
-                     y = as.factor(train_data$y),
-                     yname = "y")
-str(train_up)
-#check proportions
-print("Train Dataset")
-prop.table(table(train_data$y))
-prop.table(table(train_up$y))
-print("Test Dataset")
-prop.table(table(test_data$y))
-
-##############################################################################
-#RANDOM FOREST
-##########################################################################
-matthews_correlation_coefficient <- function(cm) {
-  tp <- as.numeric(cm[2, 2])
-  tn <- as.numeric(cm[1, 1])
-  fp <- as.numeric(cm[2, 1])
-  fn <- as.numeric(cm[1, 2])
-  
-  mcc <- (tp * tn - fp * fn) / sqrt((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn))
-  return(mcc)
-}
-############################################################################
-#without default 
-#without duration
-#mtry = 3
-
-results2 <- list()
+#################################### MODEL 1 #################################################
+#Model 1: data1 (removing default and poutcome)
+rf_result <- list()
 
 # Define your cross-validation folds
 set.seed(123)
-folds <- createFolds(data$y,k=5)
+folds1 <- createFolds(data1$y,k=5)
 
 # Loop through cross-validation folds
 for (i in 1:5) {
-  # Create training and test datasets for this fold
   print("fold")
   print(i)
-  train_fold <- data[-folds[[2]], ]
-  test_fold <- data[folds[[1]], ]
+  train_data1 <- data1[-folds1[[i]], ]
+  test_data1 <- data1[folds1[[i]], ]
   
   # Apply oversampling to the training fold
   set.seed(123)
-  train_oversampled <- ovun.sample(y~.,data = train_fold,method = "over", N=2*sum(train_fold$y == "no"))$data
-
+  train_oversampled1 <- ovun.sample(y~.,data = train_data1,method = "over", N=2*sum(train_data1$y == "no"))$data
+  
   set.seed(123)
-  rf_model2 <- randomForest(train_oversampled[,-c(5,12,17)],train_oversampled$y)
-  # Save the model in a list  
-
+  rf2_model <- randomForest(train_oversampled1[,!(names(train_oversampled1) %in% c("default","poutcome","y"))],train_oversampled1$y)
+  
   #Evaluate the model on the test fold and store results
-  predictions <- predict(rf_model2, newdata = test_fold)
-  cm <- confusionMatrix(predictions, reference = test_fold$y,positive = "yes")
+  predictions <- predict(rf2_model, newdata = test_data1)
+  cm <- confusionMatrix(predictions, reference = test_data1$y,positive = "yes")
   m <- matthews_correlation_coefficient(cm$table)
   
   #get the roc-auc value
-  pred_prob <- predict(rf_model2, newdata = test_fold,type = "prob")
-  actual_labels_numeric <- ifelse(actual_labels == "yes", 1, 0)
+  pred_prob <- predict(rf2_model, newdata = test_data1,type = "prob")
+  actual_labels_numeric <- ifelse(test_data1$y == "yes", 1, 0)
   roc_auc <- Metrics::auc(actual_labels_numeric,pred_prob[,2])
   metrics_cal = rbind(
     c(cm$overall["Accuracy"], 
@@ -129,12 +37,205 @@ for (i in 1:5) {
       roc_auc))
   colnames(metrics_cal) = c("Accuracy", "Recall", "Specificity","Precision","AUC")
   metrics_cal
-  results2[[i]] <- list(confusion = cm$table,MCC = m,Metric = metrics_cal)
+  rf2_result[[i]] <- list(confusion = cm$table,MCC = m,Metric = metrics_cal)
 }
 #results
-results2
-save(results2,"results.rds")
-load("results.rds")
-avg_mcc <- mean(sapply(results2, function(res) res$MCC))
-avg_mcc
+rf2_result
+#save(rf2_result, file = "rf2_result.rds")
+#average mcc
+avg_mcc2 <- mean(sapply(rf2_result, function(res) res$MCC))
+avg_mcc2
+#average_metrics
+average_metrics2 <- colMeans(do.call(rbind, lapply(rf2_result, function(x) x$Metric)))
+average_metrics2
+#load('rf2_result.rds')
+#rf2_result
+#avg_mcc2
+#0.5503525
+#Accuracy      Recall Specificity   Precision         AUC 
+#0.9011745   0.6470029   0.9348480   0.5682124   0.9309471 
+                                                   
+##################################################### MODEL TUNE ##############################################
+rf_tune_m <- vector("list", length = 3)
+rf_tune_m_mcc <- list()
+mtry_val <- list(4,6,8)
 
+#Define your cross-validation folds
+set.seed(123)
+folds <- createFolds(data1$y,k=5)
+
+for (k in 1:3){
+  rf_tune_m[[k]] <- vector("list", length = 5)
+  
+  for(i in 1:5) {
+    print(k)
+    print("fold")
+    print(i)
+    train_data <- data1[-folds[[i]],]
+    #test_data1 <- data1[folds[[i]],]
+    set.seed(123)
+    split <- sample(1:nrow(train_data),size = round(0.8 * nrow(train_data)))
+    # Create training and validating sets
+    train_data1 <- train_data[split, ]
+    valid_data1 <- train_data[-split, ]
+    
+    set.seed(123)
+    train_oversampled1 <- ovun.sample(y ~ .,data = train_data1, method = "over", N = 2*sum(train_data1$y == "no"))$data
+    
+    set.seed(123)
+    tune <- randomForest(train_oversampled1[,!(names(train_oversampled1) %in% c("default","poutcome","y"))],train_oversampled1$y,mtry = mtry_val[[k]])
+    
+    
+    #predict on test data and evaluate, then store 
+    prediction <- predict(tune, newdata = valid_data1)
+    
+    cm <- confusionMatrix(prediction, mode = "everything", reference = valid_data1$y, positive = "yes")
+    #create MCC function and find MCC value, store in m. 
+    m <- matthews_correlation_coefficient(cm$table)
+    pred_prob <- predict(tune, newdata = valid_data1,type = "prob")
+    actual <- ifelse(valid_data1$y == "yes", 1, 0)
+    roc_auc <- Metrics::auc(actual,pred_prob[,2])
+    metrics_cal = rbind(
+      c(cm$overall["Accuracy"], 
+        cm$byClass["Recall"], 
+        cm$byClass["Specificity"],
+        cm$byClass["Precision"],
+        roc_auc))
+    colnames(metrics_cal) = c("Accuracy", "Recall", "Specificity","Precision","AUC")
+    metrics_cal
+    
+    #store confusion matrix and MCC
+    rf_tune_m[[k]][[i]] <- list(confusion = cm$table, MCC = m, Metric = metrics_cal)
+  }
+  
+  avg_mcc <- mean(sapply(rf_tune_m[[3]], function(res) res$MCC))
+  avg_mcc
+  
+  rf_tune_m_mcc[[k]] <- avg_mcc
+  
+}
+
+rf_tune_m_mcc
+save(rf_tune_m, file = "rf_tune_manual2.rds")
+
+#mtry = 4  mtry = 6   mtry = 8
+#0.5348563 0.5368851  0.5298793
+
+########################### Fit on mtry = 6 #################################
+rf4_result <- list()
+
+# Define your cross-validation folds
+set.seed(123)
+folds1 <- createFolds(data1$y,k=5)
+
+# Loop through cross-validation folds
+for (i in 1:5) {
+  # Create training and test datasets for this fold
+  print("fold")
+  print(i)
+  train_data1 <- data1[-folds1[[i]], ]
+  test_data1 <- data1[folds1[[i]], ]
+  
+  # Apply oversampling to the training fold
+  set.seed(123)
+  train_oversampled1 <- ovun.sample(y~.,data = train_data1,method = "over", N=2*sum(train_data1$y == "no"))$data
+  
+  set.seed(123)
+  rf4_model <- randomForest(train_oversampled1[,!(names(train_oversampled1) %in% c("default","poutcome","y"))],train_oversampled1$y,mtry = 6)
+  
+  #Evaluate the model on the test fold and store results
+  predictions <- predict(rf4_model, newdata = test_data1)
+  cm <- confusionMatrix(predictions, reference = test_data1$y,positive = "yes")
+  m <- matthews_correlation_coefficient(cm$table)
+  
+  #get the roc-auc value
+  pred_prob <- predict(rf4_model, newdata = test_data1,type = "prob")
+  actual_labels_numeric <- ifelse(test_data1$y == "yes", 1, 0)
+  roc_auc <- Metrics::auc(actual_labels_numeric,pred_prob[,2])
+  metrics_cal = rbind(
+    c(cm$overall["Accuracy"], 
+      cm$byClass["Recall"], 
+      cm$byClass["Specificity"],
+      cm$byClass["Precision"],
+      roc_auc))
+  colnames(metrics_cal) = c("Accuracy", "Recall", "Specificity","Precision","AUC")
+  metrics_cal
+  rf4_result[[i]] <- list(confusion = cm$table,MCC = m,Metric = metrics_cal)
+}
+#results
+rf4_result
+save(rf4_result, file = "rf4_result.rds")
+#average mcc
+avg_mcc2 <- mean(sapply(rf4_result, function(res) res$MCC))
+avg_mcc2
+#average_metrics
+average_metrics2 <- colMeans(do.call(rbind, lapply(rf4_result, function(x) x$Metric)))
+average_metrics2
+# Display the average metrics
+rf4_result
+
+#mcc
+# 0.5350347
+
+#Accuracy      Recall Specificity   Precision         AUC 
+#0.9017716   0.6055951   0.9410099   0.5763259   0.9290742 
+
+################################################ Model 2 ######################################################
+rf_result1 <- list()
+
+# Define your cross-validation folds
+set.seed(123)
+folds1 <- createFolds(data1$y,k=5)
+
+# Loop through cross-validation folds
+for (i in 1:5) {
+  print("fold")
+  print(i)
+  train_data1 <- data1[-folds1[[i]], ]
+  test_data1 <- data1[folds1[[i]], ]
+  
+  # Apply oversampling to the training fold
+  set.seed(123)
+  train_oversampled1 <- ovun.sample(y~.,data = train_data1,method = "over", N=2*sum(train_data1$y == "no"))$data
+  
+  set.seed(123)
+  rf_model1 <- randomForest(train_oversampled1[,!(names(train_oversampled1) %in% c("default","poutcome","duration","campaign","y"))],train_oversampled1$y)
+  
+  #Evaluate the model on the test fold and store results
+  predictions <- predict(rf_model1, newdata = test_data1)
+  cm <- confusionMatrix(predictions, reference = test_data1$y,positive = "yes")
+  m <- matthews_correlation_coefficient(cm$table)
+  
+  #get the roc-auc value
+  pred_prob <- predict(rf_model1, newdata = test_data1,type = "prob")
+  actual_labels_numeric <- ifelse(test_data1$y == "yes", 1, 0)
+  roc_auc <- Metrics::auc(actual_labels_numeric,pred_prob[,2])
+  metrics_cal = rbind(
+    c(cm$overall["Accuracy"], 
+      cm$byClass["Recall"], 
+      cm$byClass["Specificity"],
+      cm$byClass["Precision"],
+      roc_auc))
+  colnames(metrics_cal) = c("Accuracy", "Recall", "Specificity","Precision","AUC")
+  metrics_cal
+  rf_result1[[i]] <- list(confusion = cm$table,MCC = m,Metric = metrics_cal)
+}
+#results
+rf_result1
+save(rf_result1, file = "rf_result1_without.rds")
+#average mcc
+avg_mcc2 <- mean(sapply(rf_result1, function(res) res$MCC))
+avg_mcc2
+#average_metrics
+average_metrics2 <- colMeans(do.call(rbind, lapply(rf_result1, function(x) x$Metric)))
+average_metrics2
+#load('rf_result1.rds')
+#rf_result1
+#avg_mcc2
+#0.3513213
+# Accuracy      Recall Specificity   Precision         AUC 
+# 0.8698546   0.4100953   0.9307650   0.4395941   0.7821059 
+############################################################ Model Tune ####################################################
+                                                   
+                                                   
+                                                   
