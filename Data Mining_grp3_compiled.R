@@ -509,7 +509,7 @@ for (i in 1:5) {
   train_oversampled1 <- ovun.sample(y~.,data = train_data1,method = "over", N=2*sum(train_data1$y == "no"))$data
   
   set.seed(123)
-  rf2_model <- randomForest(train_oversampled1[,!(names(train_oversampled1) %in% c("default","poutcome","y","previous_disc"))],train_oversampled1$y)
+  rf2_model <- randomForest(train_oversampled1[,!(names(train_oversampled1) %in% c("default","poutcome","y"))],train_oversampled1$y)
   
   #Evaluate the model on the test fold and store results
   predictions <- predict(rf2_model, newdata = test_data1)
