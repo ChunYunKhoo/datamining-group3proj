@@ -657,11 +657,11 @@ for (i in 1:5) {
 rf4_result
 save(rf4_result, file = "rf4_result.rds")
 #average mcc
-avg_mcc2 <- mean(sapply(rf4_result, function(res) res$MCC))
-avg_mcc2
+avg_mcc6 <- mean(sapply(rf4_result, function(res) res$MCC))
+avg_mcc6
 #average_metrics
-average_metrics2 <- colMeans(do.call(rbind, lapply(rf4_result, function(x) x$Metric)))
-average_metrics2
+average_metrics6 <- colMeans(do.call(rbind, lapply(rf4_result, function(x) x$Metric)))
+average_metrics6
 # Display the average metrics
 rf4_result
 
@@ -716,11 +716,11 @@ for (i in 1:5) {
 rf_result1
 save(rf_result1, file = "rf_result1_without.rds")
 #average mcc
-avg_mcc2 <- mean(sapply(rf_result1, function(res) res$MCC))
-avg_mcc2
+avg_mcc1 <- mean(sapply(rf_result1, function(res) res$MCC))
+avg_mcc1
 #average_metrics
-average_metrics2 <- colMeans(do.call(rbind, lapply(rf_result1, function(x) x$Metric)))
-average_metrics2
+average_metrics1 <- colMeans(do.call(rbind, lapply(rf_result1, function(x) x$Metric)))
+average_metrics1
 #load('rf_result1.rds')
 #rf_result1
 #avg_mcc2
@@ -838,11 +838,11 @@ for (i in 1:5) {
 rf_result2
 #save(rf_result2, file = "rf_result2_without.rds")
 #average mcc
-avg_mcc2 <- mean(sapply(rf_result2, function(res) res$MCC))
-avg_mcc2
+avg_mcc4 <- mean(sapply(rf_result2, function(res) res$MCC))
+avg_mcc4
 #average_metrics
-average_metrics2 <- colMeans(do.call(rbind, lapply(rf_result2, function(x) x$Metric)))
-average_metrics2
+average_metrics4 <- colMeans(do.call(rbind, lapply(rf_result2, function(x) x$Metric)))
+average_metrics4
 # Display the average metrics
 #load('rf_result2.rds')
 #rf_result2
