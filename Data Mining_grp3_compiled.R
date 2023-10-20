@@ -80,7 +80,7 @@ prop.table(table(data$y))
 #target variable seems highly imbalanced towards no (> 88%)
 
 
-##############DATA EXPLORATION ############################################
+##############DATA EXPLORATION ###########################################
 
 #pairplot for numerical variables to get an overview
 num_var <- data[,c("age","balance","duration", "campaign", "pdays", "previous", "day")]
@@ -489,7 +489,7 @@ matthews_correlation_coefficient <- function(cm) {
 }
 #################################### RANDOM FOREST CLASSIFICATION#########################
 #Business Model 1
-#################################### MODEL 1 #################################################
+#################################### MODEL 1 #############################################
 #Model 1: data1 (removing default and poutcome)
 rf2_result <- list()
 
