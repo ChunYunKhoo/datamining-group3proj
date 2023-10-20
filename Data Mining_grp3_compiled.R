@@ -491,7 +491,7 @@ matthews_correlation_coefficient <- function(cm) {
 #Business Model 1
 #################################### MODEL 1 #################################################
 #Model 1: data1 (removing default and poutcome)
-rf_result <- list()
+rf2_result <- list()
 
 # Define your cross-validation folds
 set.seed(123)
