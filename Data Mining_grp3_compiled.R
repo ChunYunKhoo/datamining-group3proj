@@ -599,7 +599,7 @@ for (k in 1:3){
     rf_tune_m[[k]][[i]] <- list(confusion = cm$table, MCC = m, Metric = metrics_cal)
   }
   
-  avg_mcc <- mean(sapply(rf_tune_m[[3]], function(res) res$MCC))
+  avg_mcc <- mean(sapply(rf_tune_m[[k]], function(res) res$MCC))
   avg_mcc
   
   rf_tune_m_mcc[[k]] <- avg_mcc
