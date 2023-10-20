@@ -236,6 +236,132 @@ average_metrics2
 # Accuracy      Recall Specificity   Precision         AUC 
 # 0.8698546   0.4100953   0.9307650   0.4395941   0.7821059 
 ############################################################ Model Tune ####################################################
+
+rf_tune_m1 <- vector("list", length = 3)
+rf_tune_m_mcc1 <- list()
+mtry_val <- list(4,6,8)
+
+#Define your cross-validation folds
+set.seed(123)
+folds <- createFolds(data1$y,k=5)
+
+for (k in 1:3){
+  rf_tune_m1[[k]] <- vector("list", length = 5)
+  
+  for(i in 1:5) {
+    print(k)
+    print("fold")
+    print(i)
+    train_data <- data1[-folds[[i]],]
+    #test_data1 <- data1[folds[[i]],]
+    set.seed(123)
+    split <- sample(1:nrow(train_data),size = round(0.8 * nrow(train_data)))
+    # Create training and validating sets
+    train_data1 <- train_data[split, ]
+    valid_data1 <- train_data[-split, ]
+    
+    set.seed(123)
+    train_oversampled1 <- ovun.sample(y ~ .,data = train_data1, method = "over", N = 2*sum(train_data1$y == "no"))$data
+    
+    set.seed(123)
+    tune1 <- randomForest(train_oversampled1[,!(names(train_oversampled1) %in% c("default","poutcome","duration","campaign","y"))],train_oversampled1$y,mtry = mtry_val[[k]])
+    
+    
+    #predict on test data and evaluate, then store 
+    prediction <- predict(tune1, newdata = valid_data1)
+    
+    cm <- confusionMatrix(prediction, mode = "everything", reference = valid_data1$y, positive = "yes")
+    #create MCC function and find MCC value, store in m. 
+    m <- matthews_correlation_coefficient(cm$table)
+    pred_prob <- predict(tune1, newdata = valid_data1,type = "prob")
+    actual <- ifelse(valid_data1$y == "yes", 1, 0)
+    roc_auc <- Metrics::auc(actual,pred_prob[,2])
+    metrics_cal = rbind(
+      c(cm$overall["Accuracy"], 
+        cm$byClass["Recall"], 
+        cm$byClass["Specificity"],
+        cm$byClass["Precision"],
+        roc_auc))
+    colnames(metrics_cal) = c("Accuracy", "Recall", "Specificity","Precision","AUC")
+    metrics_cal
+    
+    #store confusion matrix and MCC
+    rf_tune_m1[[k]][[i]] <- list(confusion = cm$table, MCC = m, Metric = metrics_cal)
+  }
+  
+  avg_mcc <- mean(sapply(rf_tune_m1[[k]], function(res) res$MCC))
+  avg_mcc
+  
+
+  rf_tune_m_mcc1[[k]] <- avg_mcc
+  
+}
+#save(rf_tune_m1, file = "BM2rf_tune_manual2.rds")
+rf_tune_m_mcc1
+
+#mtry = 4  mtry = 6   mtry = 8
+#0.3272737 0.3228002  0.321316
+
+######################################### Fit on mtry = 4 ##############################
+rf_result2 <- list()
+
+# Define your cross-validation folds
+set.seed(123)
+folds1 <- createFolds(data1$y,k=5)
+
+# Loop through cross-validation folds
+for (i in 1:5) {
+  # Create training and test datasets for this fold
+  print("fold")
+  print(i)
+  train_data1 <- data1[-folds1[[i]], ]
+  test_data1 <- data1[folds1[[i]], ]
+  
+  # Apply oversampling to the training fold
+  set.seed(123)
+  train_oversampled1 <- ovun.sample(y~.,data = train_data1,method = "over", N=2*sum(train_data1$y == "no"))$data
+  
+  set.seed(123)
+  rf_model2 <- randomForest(train_oversampled1[,!(names(train_oversampled1) %in% c("default","poutcome","duration","campaign","y"))],train_oversampled1$y,mtry = 4)
+  
+  #Evaluate the model on the test fold and store results
+  predictions <- predict(rf_model2, newdata = test_data1)
+  cm <- confusionMatrix(predictions, reference = test_data1$y,positive = "yes")
+  m <- matthews_correlation_coefficient(cm$table)
+  
+  #get the roc-auc value
+  pred_prob <- predict(rf_model2, newdata = test_data1,type = "prob")
+  actual_labels_numeric <- ifelse(test_data1$y == "yes", 1, 0)
+  roc_auc <- Metrics::auc(actual_labels_numeric,pred_prob[,2])
+  metrics_cal = rbind(
+    c(cm$overall["Accuracy"], 
+      cm$byClass["Recall"], 
+      cm$byClass["Specificity"],
+      cm$byClass["Precision"],
+      roc_auc))
+  colnames(metrics_cal) = c("Accuracy", "Recall", "Specificity","Precision","AUC")
+  metrics_cal
+  rf_result2[[i]] <- list(confusion = cm$table,MCC = m,Metric = metrics_cal)
+}
+#results
+rf_result2
+#save(rf_result2, file = "rf_result2_without.rds")
+#average mcc
+avg_mcc2 <- mean(sapply(rf_result2, function(res) res$MCC))
+avg_mcc2
+#average_metrics
+average_metrics2 <- colMeans(do.call(rbind, lapply(rf_result2, function(x) x$Metric)))
+average_metrics2
+# Display the average metrics
+#load('rf_result2.rds')
+#rf_result2
+
+#mcc
+#0.3373783
+
+#Accuracy      Recall Specificity   Precision         AUC 
+#0.8747208   0.3624491   0.9425881   0.4554052   0.7769311 
+
                                                    
                                                    
                                                    
