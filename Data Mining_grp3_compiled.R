@@ -478,6 +478,15 @@ identical(levels(predictions),levels(test$y))
 levels <- levels(predictions[, 1])
 levels <- levels[order(levels)]  
 confusionMatrix(table(ordered(predictions[,1],levels), ordered(test_data$y, levels)), mode = "everything", positive = 'yes')
+################################## MCC #################################################
+matthews_correlation_coefficient <- function(cm) {
+  tp <- as.numeric(cm[2, 2])
+  tn <- as.numeric(cm[1, 1])
+  fp <- as.numeric(cm[2, 1])
+  fn <- as.numeric(cm[1, 2])
+  mcc <- (tp * tn - fp * fn) / sqrt((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn))
+  return(mcc)
+}
 #################################### RANDOM FOREST CLASSIFICATION#########################
 #Business Model 1
 #################################### Model 1 ############################################
