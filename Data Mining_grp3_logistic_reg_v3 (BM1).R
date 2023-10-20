@@ -56,6 +56,7 @@ prop.table(table(train_up$y))
 print("Test Dataset")
 prop.table(table(test_data$y))
 
+############Business model 1################################################
 ###Logistic Regression (baseline model)#######
 ##remove in train_data: Default, Poutcome ####
 
@@ -313,9 +314,10 @@ metrics
 #It has reasonably high sensitivity and specificity.
 
 
-##3rd model: after tuning####
-library(readr)
-library(tidymodels)
+##improve the model based on the 3 cut off points ###
+###Logistic Regression (3rd model)#######
+##Discretized previous and pdays #############
+##remove in train_data: Default, Poutcome ####
 
 matthews_correlation_coefficient <- function(cm) {
   TP <- as.numeric(cm[1,1])
@@ -327,47 +329,88 @@ matthews_correlation_coefficient <- function(cm) {
   return(mcc)
 }
 
-##unsure if this is the right way to hypertune the logistic regression model###
-# Define the logistic regression model with penalty and mixture hyperparameters
-log_reg <- logistic_reg(mixture = tune(), penalty = tune(), engine = "glmnet")
+# Initialize a list to store results
+log_results2 <- vector("list", length = 5)
 
-# Define the grid search for the hyperparameters
-grid <- grid_regular(mixture(), penalty(), levels = c(mixture = 4, penalty = 3))
+for (i in 1:5) {
+  set.seed(123)  # Ensure consistent results within each fold
+  
+  # Split into training and test set
+  train_data1 <- data1[-folds1[[i]], ]
+  test_data1 <- data1[folds1[[i]], ]
+  
+  # Check for class imbalance and use ROSE for oversampling if necessary
+  if (sum(train_data1$y == "yes") < sum(train_data1$y == "no")) {
+    train_data1 <- ovun.sample(y ~ ., data = train_data1, method = "over", 
+                               N = 2 * sum(train_data1$y == "no"))$data
+  }
+  
+  # Remove 'default' and 'poutcome' in the train set after cross-validation
+  train_data1 <- subset(train_data1, select = -c(default, poutcome))
+  
+  # Scale only the specified numeric columns
+  numeric_cols_train1 <- c(1, 5, 9, 11, 12)
+  numeric_cols_test1 <- c(1, 6, 10, 12, 13)
+  train_data1[, numeric_cols_train1] <- scale(train_data1[, numeric_cols_train1])
+  test_data1[, numeric_cols_test1] <- scale(test_data1[, numeric_cols_test1])
+  
+  # Train logistic regression
+  set.seed(123)
+  log_model1 <- glm(y ~ ., data = train_data1, family = binomial(link = "logit"))
+  
+  # Predict using the logistic regression model in test data, probabilities obtained
+  log_test_pred2 <- predict(log_model1, test_data1, type = 'response')
+  
+  # Define probability thresholds for classification
+  thresholds <- c(0.1, 0.5, 0.9)
+  
+  # Initialize a list to store results for this fold
+  fold_results <- list()
+  fold_mcc_values <- list()
+  
+  for (threshold in thresholds) {
+    predicted_log_labels2 <- factor(ifelse(log_test_pred2 >= threshold, "yes", "no"))
+    
+    # Generate the confusion matrix
+    cm <- table(Predicted = predicted_log_labels2, Reference = test_data1$y)
+    
+    # Calculate MCC
+    mcc <- matthews_correlation_coefficient(cm)
+    
+    # Store MCC value in the fold_mcc_values list
+    fold_mcc_values[[as.character(threshold)]] <- mcc
+    
+    # Use confusionMatrix function to calculate other metrics
+    confusion_matrix_result <- confusionMatrix(predicted_log_labels2, test_data1$y, 
+                                               positive = "yes", mode = "everything")
+    
+    print(confusion_matrix_result)
+    
+    # Store confusion matrix and MCC in the fold_results list
+    fold_results[[as.character(threshold)]] <- list(
+      confusion = cm, 
+      MCC = mcc,
+      confusion_matrix = confusion_matrix_result  # Store the result from confusionMatrix
+    )
+  }
+  
+  # Calculate the average MCC for each threshold level across all folds
+  avg_mcc_per_threshold <- sapply(thresholds, function(j) {
+    mean(sapply(log_results2, function(res) res$fold_mcc_values[[as.character(j)]]))
+  })
+  
+  # Store fold_mcc_values and avg_mcc_per_threshold in the log_results2 list
+  log_results2[[i]] <- list(
+    fold_mcc_values = fold_mcc_values)
+  
+  # Print the confusion matrix for each threshold
+  cat(sprintf("Fold %d Confusion Matrix:\n", i))
+  for (threshold in thresholds) {
+    print(fold_results[[as.character(threshold)]])
+  }
+}
 
-# Define the workflow for the model
-log_reg_wf <- workflow() %>%
-  add_model(log_reg) %>%
-  add_formula(y ~ .)
+# Calculate the average MCC over all folds
+log_results2
 
-# Define the resampling method for the grid search
-folds3 <- vfold_cv(train_data, v = 5)
-
-# Tune the hyperparameters using the grid search
-log_reg_tuned <- tune_grid(
-  log_reg_wf,
-  resamples = folds3,
-  grid = grid,
-  control = control_grid(save_pred = TRUE)
-)
-
-select_best(log_reg_tuned, metric = "roc_auc")
-
-# Fit the model using the optimal hyperparameters
-log_reg_final <- logistic_reg(penalty = 0.0000000001, mixture = 0) %>%
-  set_engine("glmnet") %>%
-  set_mode("classification") %>%
-  fit(y~., data = train_data)
-
-# Evaluate the model performance on the testing set
-set.seed(123)
-pred_class <- predict(log_reg_final,
-                      new_data = test_data,
-                      type = "class")
-results <- test_data %>%
-  select(y) %>%
-  bind_cols(pred_class, log_test_pred)
-
-# Create confusion matrix
-conf_mat(results, truth = y,
-         estimate = .pred_class)
 
