@@ -1,30 +1,12 @@
-install.packages("corrplot")
-install.packages("class")
-install.packages("caret")
-install.packages("dplyr")
-install.packages("Metrics")
-install.packages("e1071")
-install.packages("c50")
-install.packages("gmodels")
-install.packages("tidyverse")
-install.packages('randomForest')
-install.packages('caret')
-install.packages('GGally')
-install.packages("ggforce")
-install.packages("ggplot2")
-install.packages('Metrics')
-install.packages('Boruta')
-install.packages('MLmetrics')
-install.packages('tictoc')
-install.packages('mlbench')
-install.packages('rcompanion')
-install.packages("mltools")
-install.packages("grid")
-install.packages("gridExtra")
-install.packages("ROSE")
-install.packages("pROC")
-install.packages("readr")
-install.packages("tidymodels")
+# Install packages
+install.packages(c("corrplot", "class", "caret", "dplyr", 
+                   "Metrics", "e1071", "C50", "gmodels", 
+                   "tidyverse", "randomForest", "GGally", 
+                   "ggforce", "ggplot2", "Boruta", "MLmetrics", 
+                   "tictoc", "mlbench", "rcompanion", "mltools", 
+                   "gridExtra", "ROSE", "pROC", "readr", 
+                   "tidymodels", "kernlab"))
+# Load libraries
 library(mltools)
 library(corrplot)
 library(class)
@@ -37,18 +19,17 @@ library(gmodels)
 library(randomForest)
 library(ggforce)
 library(tidyverse)
-library(randomForest)
 library(ggplot2)
 library(GGally)
-library(Metrics)
 library(mlbench)
 library(rcompanion)
-library(grid)
 library(gridExtra)
 library(ROSE)
 library(pROC)
 library(readr)
 library(tidymodels)
+library(kernlab)
+
 rm(list=ls())
 
 #import data
@@ -2333,3 +2314,541 @@ for(i in 1:5) {
 log_avg_mcc4 <- mean(sapply(log_results4, function(res) res$MCC))
 log_avg_mcc4
 log_auc_values4
+
+######################################svm#######################################
+# Scale numeric columns
+numeric_cols <- c("age", "balance", "day", "duration", "campaign")
+data1[, numeric_cols] <- scale(data1[, numeric_cols])
+data1[, numeric_cols] <- scale(data1[, numeric_cols])
+###########################SVM#################################################
+###############################Business Model 1#####################
+#create function for calculating mcc
+matthews_correlation_coefficient <- function(cm) {
+  TN <- as.numeric(cm[1,1])
+  TP <- as.numeric(cm[2,2])
+  FP <- as.numeric(cm[1,2])
+  FN <- as.numeric(cm[2,1])
+  
+  mcc <- (TP * TN - FP * FN) / sqrt((TP + FP) * (TP + FN) * (TN + FP) * (TN + FN))
+  return(mcc)
+}
+# Specify the file to store or retrieve results
+results_file1 <- "my_results1.rds"
+
+# Check if previous results exist
+if (file.exists(results_file1)) {
+  # Load stored results
+  results1 <- readRDS(results_file1)
+  
+  # Extracting metrics from stored results
+  mcc_list1 <- results1$mcc_list
+  accuracy_list1 <- results1$accuracy_list
+  sensitivity_list1 <- results1$sensitivity_list
+  specificity_list1 <- results1$specificity_list
+  auc_list1 <- results1$auc_list
+} else {
+  # If no previous results, compute them
+  set.seed(123)
+  folds <- createFolds(data1$y, k=5)
+  mcc_list <- vector("numeric", length(folds))
+  accuracy_list <- vector("numeric", length(folds))
+  specificity_list <- vector("numeric", length(folds))
+  sensitivity_list <- vector("numeric", length(folds))
+  auc_list <- vector("numeric", length(folds))
+  
+  # Loop through each fold
+  for(i in 1:5) {
+    # Split the data into training and validation sets
+    train_data <- data1[-folds[[i]],]
+    test_data <- data1[folds[[i]],]
+    # Check for class imbalance and use ROSE for oversampling if necessary
+    if(sum(train_data$y == "yes") < sum(train_data$y == "no")) {
+      train_data <- ovun.sample(y ~ ., data = train_data, method = "over", N = 2*sum(train_data$y == "no"))$data
+    }
+    # Remove certain columns from training
+    train_data <- subset(train_data, select = -c(default, poutcome))
+    
+    # Train SVM model without probability estimates
+    model <- ksvm(y ~ ., data=train_data, kernel="rbfdot", C=10, kpar=list(sigma=0.01))
+    
+    # Get class predictions
+    predictions <- predict(model, test_data)
+    
+    # Convert class predictions to binary format for AUC computation
+    binary_predictions <- ifelse(predictions == "yes", 1, 0)
+    binary_true_labels <- ifelse(test_data$y == "yes", 1, 0)
+    
+    # Compute AUC using ROCR
+    library(ROCR)
+    pred <- prediction(binary_predictions, binary_true_labels)
+    perf <- performance(pred, measure = "auc")
+    auc <- as.numeric(perf@y.values)
+    auc_list[i] <- auc
+    
+    # Compute confusion matrix
+    cm_obj <- confusionMatrix(predictions, test_data$y)
+    
+    # Extract metrics
+    mcc <- matthews_correlation_coefficient(cm_obj$table)
+    mcc_list[i] <- mcc
+    accuracy <- cm_obj$overall['Accuracy']
+    accuracy_list[i] <- accuracy
+    sensitivity <- cm_obj$byClass['Sensitivity']
+    sensitivity_list[i] <- sensitivity
+    specificity <- cm_obj$byClass['Specificity']
+    specificity_list[i] <- specificity
+    
+    # Display results for current fold
+    cat(sprintf("Fold %d Confusion Matrix:\n", i))
+    print(cm_obj$table)
+    cat(sprintf("MCC: %f\n", mcc))
+    cat(sprintf("Accuracy: %f\n", accuracy))
+    cat(sprintf("Sensitivity: %f\n", sensitivity))
+    cat(sprintf("Specificity: %f\n", specificity))
+    cat(sprintf("AUC: %f\n", auc))
+    cat("------------------------------\n")
+  }
+  
+  # Store results for future use
+  results1 <- list(
+    mcc_list = mcc_list,
+    accuracy_list = accuracy_list,
+    sensitivity_list = sensitivity_list,
+    specificity_list = specificity_list,
+    auc_list = auc_list
+  )
+  saveRDS(results1, results_file1)
+}
+
+# Compute average metrics across all folds
+avg_mcc1 <- mean(mcc_list)
+avg_accuracy1 <- mean(accuracy_list)
+avg_sensitivity1 <- mean(sensitivity_list)
+avg_specificity1 <- mean(specificity_list)
+avg_auc1 <- mean(auc_list)
+
+# Display average results
+cat(sprintf("Average MCC: %f\n", avg_mcc1))  
+cat(sprintf("Average Accuracy: %f\n", avg_accuracy1)) 
+cat(sprintf("Average Sensitivity: %f\n", avg_sensitivity1)) 
+cat(sprintf("Average Specificity: %f\n", avg_specificity1)) 
+cat(sprintf("Average AUC: %f\n", avg_auc1)) 
+#Average MCC: 0.518468
+#Average Accuracy: 0.831125
+#Average Sensitivity: 0.824458
+#Average Specificity: 0.881452
+#Average AUC: 0.852955
+###############################tuning Business model1########################
+# Specify the file to store or retrieve results
+results_file2 <- "my_results2.rds"
+
+# Check if previous results exist
+if (file.exists(results_file2)) {
+  # Load stored results
+  results2 <- readRDS(results_file2)
+  
+  # Extracting metrics from stored results
+  mcc_list2 <- results2$mcc_list
+  accuracy_list2 <- results2$accuracy_list
+  sensitivity_list2 <- results2$sensitivity_list
+  specificity_list2 <- results2$specificity_list
+  auc_list2 <- results2$auc_list
+} else {
+  # If no previous results, compute them
+  set.seed(123)
+  folds <- createFolds(data$y, k=5)
+  mcc_list <- vector("numeric", length(folds))
+  accuracy_list <- vector("numeric", length(folds))
+  specificity_list <- vector("numeric", length(folds))
+  sensitivity_list <- vector("numeric", length(folds))
+  auc_list <- vector("numeric", length(folds))
+  
+  # Tuning ranges
+  C_values <- c(0.1, 1, 10)
+  sigma_values <- c(0.01, 0.1, 1)
+  
+  # Create a progress bar for the folds
+  pb_fold <- txtProgressBar(min = 0, max = 5, style = 3)
+  
+  # Loop through each fold
+  for(i in 1:5) {
+    # Update fold progress
+    setTxtProgressBar(pb_fold, i)
+    
+    # Split the data into training and validation sets
+    train_data <- data[-folds[[i]],]
+    test_data <- data[folds[[i]],]
+    
+    # Check for class imbalance and use ROSE for oversampling if necessary
+    if(sum(train_data$y == "yes") < sum(train_data$y == "no")) {
+      train_data <- ovun.sample(y ~ ., data = train_data, method = "over", N = 2*sum(train_data$y == "no"))$data
+    }
+    
+    # Remove certain columns from training
+    train_data <- subset(train_data, select = -c(default, poutcome))
+    
+    # Create a progress bar for the grid search
+    total_combinations <- length(C_values) * length(sigma_values)
+    pb_grid <- txtProgressBar(min = 0, max = total_combinations, style = 3)
+    counter <- 0
+    
+    # Grid search for tuning within each fold
+    best_mcc <- -1 # start with the worst possible MCC
+    best_C <- NA
+    best_sigma <- NA
+    for (C in C_values) {
+      for (sigma in sigma_values) {
+        cat(sprintf("Evaluating Fold %d with C: %f, Sigma: %f\n", i, C, sigma)) # Print current combination
+        
+        model <- ksvm(y ~ ., data=train_data, kernel="rbfdot", C=C, kpar=list(sigma=sigma))
+        predictions <- predict(model, test_data)
+        
+        # Compute confusion matrix for current parameters
+        cm_temp <- table(predictions, test_data$y)
+        current_mcc <- matthews_correlation_coefficient(cm_temp)
+        
+        if (!is.na(current_mcc) && current_mcc > best_mcc) {
+          best_mcc <- current_mcc
+          best_C <- C
+          best_sigma <- sigma
+        }
+        
+        counter <- counter + 1
+        setTxtProgressBar(pb_grid, counter)
+      }
+    }
+    
+    # Train SVM model with best parameters
+    model <- ksvm(y ~ ., data=train_data, kernel="rbfdot", C=best_C, kpar=list(sigma=best_sigma))
+    
+    # Get class predictions
+    predictions <- predict(model, test_data)
+    
+    # Convert class predictions to binary format for AUC computation
+    binary_predictions <- ifelse(predictions == "yes", 1, 0)
+    binary_true_labels <- ifelse(test_data$y == "yes", 1, 0)
+    
+    # Compute AUC using ROCR
+    library(ROCR)
+    pred <- prediction(binary_predictions, binary_true_labels)
+    perf <- performance(pred, measure = "auc")
+    auc <- as.numeric(perf@y.values)
+    auc_list[i] <- auc
+    
+    # Compute confusion matrix
+    cm_obj <- confusionMatrix(predictions, test_data$y)
+    
+    # Extract other metrics
+    mcc <- matthews_correlation_coefficient(cm_obj$table)
+    mcc_list[i] <- mcc
+    accuracy <- cm_obj$overall['Accuracy']
+    accuracy_list[i] <- accuracy
+    sensitivity <- cm_obj$byClass['Sensitivity']
+    sensitivity_list[i] <- sensitivity
+    specificity <- cm_obj$byClass['Specificity']
+    specificity_list[i] <- specificity
+    
+    # Display results for current fold
+    cat(sprintf("Fold %d (Best C: %f, Best Sigma: %f)\n", i, best_C, best_sigma))
+    print(cm_obj$table)
+    cat(sprintf("MCC: %f\n", mcc))
+    cat(sprintf("Accuracy: %f\n", accuracy))
+    cat(sprintf("Sensitivity: %f\n", sensitivity))
+    cat(sprintf("Specificity: %f\n", specificity))
+    cat(sprintf("AUC: %f\n", auc))
+    cat("------------------------------\n")
+  }
+  
+  # Store results for future use
+  results2 <- list(
+    mcc_list = mcc_list,
+    accuracy_list = accuracy_list,
+    sensitivity_list = sensitivity_list,
+    specificity_list = specificity_list,
+    auc_list = auc_list
+  )
+  saveRDS(results2, results_file2)
+}
+
+# Compute average metrics across all folds
+avg_mcc2 <- mean(mcc_list)
+avg_accuracy2 <- mean(accuracy_list)
+avg_sensitivity2 <- mean(sensitivity_list)
+avg_specificity2 <- mean(specificity_list)
+avg_auc2 <- mean(auc_list)
+
+# Display average results
+cat(sprintf("Average MCC: %f\n", avg_mcc2))
+cat(sprintf("Average Accuracy: %f\n", avg_accuracy2))
+cat(sprintf("Average Sensitivity: %f\n", avg_sensitivity2))
+cat(sprintf("Average Specificity: %f\n", avg_specificity2))
+cat(sprintf("Average AUC: %f\n", avg_auc2))
+#Average MCC: 0.533213
+#Average Accuracy: 0.847559
+#Average Sensitivity: 0.846075
+#Average Specificity: 0.858762
+#Average AUC: 0.852418
+
+
+########################################Business Model 2, remove duration and campaign########################
+# Specify the file to store or retrieve results
+results_file3 <- "my_results3.rds"
+
+# Check if previous results exist
+if (file.exists(results_file3)) {
+  # Load stored results
+  results3 <- readRDS(results_file3)
+  
+  # Extracting metrics from stored results
+  mcc_list3 <- results3$mcc_list
+  accuracy_list3 <- results3$accuracy_list
+  sensitivity_list3 <- results3$sensitivity_list
+  specificity_list3 <- results3$specificity_list
+  auc_list3 <- results3$auc_list
+} else {
+  # If no previous results, compute them
+  set.seed(123)
+  folds <- createFolds(data1$y, k=5)
+  mcc_list <- vector("numeric", length(folds))
+  accuracy_list <- vector("numeric", length(folds))
+  specificity_list <- vector("numeric", length(folds))
+  sensitivity_list <- vector("numeric", length(folds))
+  auc_list <- vector("numeric", length(folds))
+  
+  # Loop through each fold
+  for(i in 1:5) {
+    # Split the data into training and validation sets
+    train_data <- data1[-folds[[i]],]
+    test_data <- data1[folds[[i]],]
+    
+    # Check for class imbalance and use ROSE for oversampling if necessary
+    if(sum(train_data$y == "yes") < sum(train_data$y == "no")) {
+      train_data <- ovun.sample(y ~ ., data = train_data, method = "over", N = 2*sum(train_data$y == "no"))$data
+    }
+    
+    # Remove certain columns from training
+    train_data <- subset(train_data, select = -c(default, poutcome, duration, campaign))
+    
+    # Train SVM model without probability estimates
+    model <- ksvm(y ~ ., data=train_data, kernel="rbfdot", C=10, kpar=list(sigma=0.01))
+    
+    # Get class predictions
+    predictions <- predict(model, test_data)
+    
+    # Convert class predictions to binary format for AUC computation
+    binary_predictions <- ifelse(predictions == "yes", 1, 0)
+    binary_true_labels <- ifelse(test_data$y == "yes", 1, 0)
+    
+    # Compute AUC using ROCR
+    library(ROCR)
+    pred <- prediction(binary_predictions, binary_true_labels)
+    perf <- performance(pred, measure = "auc")
+    auc <- as.numeric(perf@y.values)
+    auc_list[i] <- auc
+    
+    # Compute confusion matrix
+    cm_obj <- confusionMatrix(predictions, test_data$y)
+    
+    # Extract other metrics
+    mcc <- matthews_correlation_coefficient(cm_obj$table)
+    mcc_list[i] <- mcc
+    accuracy <- cm_obj$overall['Accuracy']
+    accuracy_list[i] <- accuracy
+    sensitivity <- cm_obj$byClass['Sensitivity']
+    sensitivity_list[i] <- sensitivity
+    specificity <- cm_obj$byClass['Specificity']
+    specificity_list[i] <- specificity
+    
+    # Display results for current fold
+    cat(sprintf("Fold %d Confusion Matrix:\n", i))
+    print(cm_obj$table)
+    cat(sprintf("MCC: %f\n", mcc))
+    cat(sprintf("Accuracy: %f\n", accuracy))
+    cat(sprintf("Sensitivity: %f\n", sensitivity))
+    cat(sprintf("Specificity: %f\n", specificity))
+    cat(sprintf("AUC: %f\n", auc))
+    cat("------------------------------\n")
+  }
+  
+  # Store results for future use
+  results3 <- list(
+    mcc_list = mcc_list,
+    accuracy_list = accuracy_list,
+    sensitivity_list = sensitivity_list,
+    specificity_list = specificity_list,
+    auc_list = auc_list
+  )
+  saveRDS(results3, results_file3)
+}
+
+# Compute average metrics across all folds
+avg_mcc3 <- mean(mcc_list)
+avg_accuracy3 <- mean(accuracy_list)
+avg_sensitivity3 <- mean(sensitivity_list)
+avg_specificity3 <- mean(specificity_list)
+avg_auc3 <- mean(auc_list)
+
+# Display average results
+cat(sprintf("Average MCC: %f\n", avg_mcc3))
+cat(sprintf("Average Accuracy: %f\n", avg_accuracy3))
+cat(sprintf("Average Sensitivity: %f\n", avg_sensitivity3))
+cat(sprintf("Average Specificity: %f\n", avg_specificity3))
+cat(sprintf("Average AUC: %f\n", avg_auc3))
+
+#Average MCC: 0.337622
+#Average Accuracy: 0.805269
+#Average Sensitivity: 0.832248
+#Average Specificity: 0.601624
+#Average AUC: 0.716936
+###############################tuning Business model2########################
+# Specify the file to store or retrieve results
+results_file4 <- "my_results4.rds"
+
+# Check if previous results exist
+if (file.exists(results_file4)) {
+  # Load stored results
+  results4 <- readRDS(results_file4)
+  
+  # Extracting metrics from stored results
+  mcc_list4 <- results4$mcc_list
+  accuracy_list4 <- results4$accuracy_list
+  sensitivity_list4 <- results4$sensitivity_list
+  specificity_list4 <- results4$specificity_list
+  auc_list4 <- results4$auc_list
+} else {
+  # If no previous results, compute them
+  set.seed(123)
+  folds <- createFolds(data$y, k=5)
+  mcc_list <- vector("numeric", length(folds))
+  accuracy_list <- vector("numeric", length(folds))
+  specificity_list <- vector("numeric", length(folds))
+  sensitivity_list <- vector("numeric", length(folds))
+  auc_list <- vector("numeric", length(folds))
+  
+  # Tuning ranges
+  C_values <- c(0.1, 1, 10)
+  sigma_values <- c(0.01, 0.1, 1)
+  
+  # Create a progress bar for the folds
+  pb_fold <- txtProgressBar(min = 0, max = 5, style = 3)
+  
+  # Loop through each fold
+  for(i in 1:5) {
+    # Update fold progress
+    setTxtProgressBar(pb_fold, i)
+    
+    # Split the data into training and validation sets
+    train_data <- data1[-folds[[i]],]
+    test_data <- data1[folds[[i]],]
+    
+    # Check for class imbalance and use ROSE for oversampling if necessary
+    if(sum(train_data$y == "yes") < sum(train_data$y == "no")) {
+      train_data <- ovun.sample(y ~ ., data = train_data, method = "over", N = 2*sum(train_data$y == "no"))$data
+    }
+    
+    # Remove certain columns from training
+    train_data <- subset(train_data, select = -c(default, poutcome, duration, campaign))
+    
+    # Create a progress bar for the grid search
+    total_combinations <- length(C_values) * length(sigma_values)
+    pb_grid <- txtProgressBar(min = 0, max = total_combinations, style = 3)
+    counter <- 0
+    
+    # Grid search for tuning within each fold
+    best_mcc <- -1 # start with the worst possible MCC
+    best_C <- NA
+    best_sigma <- NA
+    for (C in C_values) {
+      for (sigma in sigma_values) {
+        cat(sprintf("Evaluating Fold %d with C: %f, Sigma: %f\n", i, C, sigma)) # Print current combination
+        
+        model <- ksvm(y ~ ., data=train_data, kernel="rbfdot", C=C, kpar=list(sigma=sigma))
+        predictions <- predict(model, test_data)
+        
+        # Compute confusion matrix for current parameters
+        cm_temp <- table(predictions, test_data$y)
+        current_mcc <- matthews_correlation_coefficient(cm_temp)
+        
+        if (!is.na(current_mcc) && current_mcc > best_mcc) {
+          best_mcc <- current_mcc
+          best_C <- C
+          best_sigma <- sigma
+        }
+        
+        counter <- counter + 1
+        setTxtProgressBar(pb_grid, counter)
+      }
+    }
+    
+    # Train SVM model with best parameters
+    model <- ksvm(y ~ ., data=train_data, kernel="rbfdot", C=best_C, kpar=list(sigma=best_sigma))
+    
+    # Get class predictions
+    predictions <- predict(model, test_data)
+    
+    # Convert class predictions to binary format for AUC computation
+    binary_predictions <- ifelse(predictions == "yes", 1, 0)
+    binary_true_labels <- ifelse(test_data$y == "yes", 1, 0)
+    
+    # Compute AUC using ROCR
+    library(ROCR)
+    pred <- prediction(binary_predictions, binary_true_labels)
+    perf <- performance(pred, measure = "auc")
+    auc <- as.numeric(perf@y.values)
+    auc_list[i] <- auc
+    
+    # Compute confusion matrix
+    cm_obj <- confusionMatrix(predictions, test_data$y)
+    
+    # Extract other metrics
+    mcc <- matthews_correlation_coefficient(cm_obj$table)
+    mcc_list[i] <- mcc
+    accuracy <- cm_obj$overall['Accuracy']
+    accuracy_list[i] <- accuracy
+    sensitivity <- cm_obj$byClass['Sensitivity']
+    sensitivity_list[i] <- sensitivity
+    specificity <- cm_obj$byClass['Specificity']
+    specificity_list[i] <- specificity
+    
+    # Display results for current fold
+    cat(sprintf("Fold %d (Best C: %f, Best Sigma: %f)\n", i, best_C, best_sigma))
+    print(cm_obj$table)
+    cat(sprintf("MCC: %f\n", mcc))
+    cat(sprintf("Accuracy: %f\n", accuracy))
+    cat(sprintf("Sensitivity: %f\n", sensitivity))
+    cat(sprintf("Specificity: %f\n", specificity))
+    cat(sprintf("AUC: %f\n", auc))
+    cat("------------------------------\n")
+  }
+  
+  # Store results for future use
+  results4 <- list(
+    mcc_list = mcc_list,
+    accuracy_list = accuracy_list,
+    sensitivity_list = sensitivity_list,
+    specificity_list = specificity_list,
+    auc_list = auc_list
+  )
+  saveRDS(results4, results_file4)
+}
+
+# Compute average metrics across all folds
+avg_mcc4 <- mean(mcc_list)
+avg_accuracy4 <- mean(accuracy_list)
+avg_sensitivity4 <- mean(sensitivity_list)
+avg_specificity4 <- mean(specificity_list)
+avg_auc4 <- mean(auc_list)
+
+# Display average results
+cat(sprintf("Average MCC: %f\n", avg_mcc4))
+cat(sprintf("Average Accuracy: %f\n", avg_accuracy4))
+cat(sprintf("Average Sensitivity: %f\n", avg_sensitivity4))
+cat(sprintf("Average Specificity: %f\n", avg_specificity4))
+cat(sprintf("Average AUC: %f\n", avg_auc4))
+
+#(Best C: 1.000000, Best Sigma: 0.100000) for all folds
+#Average MCC: 0.358038
+#Average Accuracy: 0.821570
+#Average Sensitivity: 0.851736
+#Average Specificity: 0.593875
+#Average AUC: 0.722806
