@@ -18,7 +18,7 @@ library(caret)
 library(pROC)
 library(mltools)
 library(readr)
-library(tidymodels)
+
 
 rm(list=ls())
 #import data
