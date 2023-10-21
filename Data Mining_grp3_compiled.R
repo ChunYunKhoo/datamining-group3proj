@@ -21,6 +21,10 @@ install.packages('rcompanion')
 install.packages("mltools")
 install.packages("grid")
 install.packages("gridExtra")
+install.packages("ROSE")
+install.packages("pROC")
+install.packages("readr")
+install.packages("tidymodels")
 library(mltools)
 library(corrplot)
 library(class)
@@ -41,6 +45,11 @@ library(mlbench)
 library(rcompanion)
 library(grid)
 library(gridExtra)
+library(ROSE)
+library(pROC)
+library(readr)
+library(tidymodels)
+rm(list=ls())
 
 #import data
 data <- read.csv("C:/Users/chuny/Documents/GitHub/datamining-group3proj/bank-full.csv", header=TRUE, sep = ";", stringsAsFactors = TRUE)
@@ -1636,3 +1645,691 @@ avg_senstivity3
 avg_specificity3
 avg_precision3
 avg_auc3 
+
+##########################Logistic Regression########################
+######               BM1                          ###################
+#########################Discretized previous and pdays #############
+#########################remove in train_data: Default, Poutcome ####
+
+matthews_correlation_coefficient <- function(cm) {
+  TP <- as.numeric(cm[1,1])
+  TN <- as.numeric(cm[2,2])
+  FP <- as.numeric(cm[2,1])
+  FN <- as.numeric(cm[1,2])
+  
+  mcc <- (TP * TN - FP * FN) / sqrt((TP + FP) * (TP + FN) * (TN + FP) * (TN + FN))
+  return(mcc)
+}
+
+# Prepare for 5-fold cross-validation
+set.seed(123)
+folds1 <- createFolds(data1$y, k=5)
+
+# Initialize a list to store AUC values for each fold
+log_auc_values1 <- list()
+
+log_results1 <- list()
+log_proportions1 <- list()
+
+for(i in 1:5) {
+  # Split into training and test set
+  train_data1 <- data1[-folds1[[i]],]
+  test_data1 <- data1[folds1[[i]],]
+  
+  # Check for class imbalance and use ROSE for oversampling if necessary
+  set.seed(123)
+  if(sum(train_data1$y == "yes") < sum(train_data1$y == "no")) {
+    train_data1 <- ovun.sample(y ~ ., data = train_data1, method = "over", 
+                               N = 2*sum(train_data1$y == "no"))$data
+  }
+  #remove default and poutcome in train set after cross-validation
+  train_data1 <- subset(train_data1, select= c(-default, -poutcome))
+  
+  # Scale only the specified numeric columns
+  numeric_cols_test1 <- c(1, 6, 10, 12, 13)
+  numeric_cols_train1 <- c(1, 5, 9, 11, 12)
+  train_data1[, numeric_cols_train1] <- scale(train_data1[, numeric_cols_train1])
+  test_data1[, numeric_cols_test1] <- scale(test_data1[, numeric_cols_test1])
+  
+  # Train log regression
+  set.seed(123)
+  log_model1 <- glm(y ~., data = train_data1, family = binomial(link = "logit"))
+  
+  ## to predict using logistic regression model in test data, probabilities obtained
+  # Validate the model
+  log_test_pred1 <- predict(log_model1, test_data1,type = 'response')
+  predicted_log_labels1 <- factor(ifelse(log_test_pred1>= 0.5, "yes", "no"))
+  
+  #generating confusion matrix
+  table_log1 <- table(Predicted = predicted_log_labels1, Reference = test_data1[,13])
+  table_log1
+  
+  test_data_labels1 <- as.factor(test_data1$y)
+  length(test_data_labels1)
+  length(predicted_log_labels1)
+  
+  str(test_data_labels1)
+  str(predicted_log_labels1)
+  
+  table(test_data_labels1)
+  table(predicted_log_labels1)
+  if(!identical(levels(predicted_log_labels1), levels(test_data_labels1))) {
+    levels(predicted_log_labels1) <- levels(test_data_labels1)
+  }
+  
+  #confusion matrix
+  cm_metrics1 <- confusionMatrix(predicted_log_labels1, test_data_labels1, 
+                                 positive = "yes",mode = "everything")
+  print(cm_metrics1)
+  cm <- confusionMatrix(predicted_log_labels1, test_data_labels1, 
+                        positive = "yes",mode = "everything")$table
+  mcc <- matthews_correlation_coefficient(cm)
+  log_results1[[i]] <- list(confusion=cm, MCC=mcc)
+  
+  # Calculate AUC
+  auc1 <- auc(roc(test_data1$y, log_test_pred1))
+  
+  # Store AUC values in the list
+  log_auc_values1[[i]] <- auc1
+  
+  
+  # Print the confusion matrix
+  cat(sprintf("Fold %d Confusion Matrix:\n", i))
+  print(cm)
+  
+}
+
+log_avg_mcc1 <- mean(sapply(log_results1, function(res) res$MCC))
+log_avg_mcc1
+log_auc_values1
+
+### finding of the cut-off point###
+#Predict probabilities on the test data
+log_test_pred1 <- predict(log_model1, test_data1,type = 'response')
+test_roc = roc(test_data1$y ~ log_test_pred1, plot = TRUE, print.auc = TRUE)
+as.numeric(test_roc$auc)
+
+#write a function write a function 
+#which allows use to make predictions based on different probability cutoffs.
+
+get_logistic_pred = function(mod, data, res = "y", pos = 1, neg = 0, cut = 0.5) {
+  probs = predict(mod, newdata = data, type = "response")
+  ifelse(probs > cut, pos, neg)
+}
+
+test_pred_10 = get_logistic_pred(log_model1, data = test_data1, res = "y", 
+                                 pos = "yes", neg = "no", cut = 0.1)
+test_pred_50 = get_logistic_pred(log_model1, data = test_data1, res = "y", 
+                                 pos = "yes", neg = "no", cut = 0.5)
+test_pred_90 = get_logistic_pred(log_model1, data = test_data1, res = "y", 
+                                 pos = "yes", neg = "no", cut = 0.9)
+
+test_pred_10
+length(test_pred_10)
+length(test_data1$y)
+
+test_tab_10 = table(predicted = test_pred_10, actual = test_data1$y)
+test_tab_50 = table(predicted = test_pred_50, actual = test_data1$y)
+test_tab_90 = table(predicted = test_pred_90, actual = test_data1$y)
+
+test_con_mat_10 = confusionMatrix(test_tab_10, positive = "yes")
+test_con_mat_50 = confusionMatrix(test_tab_50, positive = "yes")
+test_con_mat_90 = confusionMatrix(test_tab_90, positive = "yes")
+
+metrics = rbind(
+  
+  c(test_con_mat_10$overall["Accuracy"], 
+    test_con_mat_10$byClass["Sensitivity"], 
+    test_con_mat_10$byClass["Specificity"]),
+  
+  c(test_con_mat_50$overall["Accuracy"], 
+    test_con_mat_50$byClass["Sensitivity"], 
+    test_con_mat_50$byClass["Specificity"]),
+  
+  c(test_con_mat_90$overall["Accuracy"], 
+    test_con_mat_90$byClass["Sensitivity"], 
+    test_con_mat_90$byClass["Specificity"])
+  
+)
+rownames(metrics) = c("c = 0.10", "c = 0.50", "c = 0.90")
+metrics
+
+
+#A good model will have a high AUC, 
+#that is as often as possible a high sensitivity and specificity.
+#will stick with cutoff of 0.5 since we want a 
+#balanced trade-off between sensitivity and specificity, 
+#then c = 0.50 seems like a reasonable choice. 
+#It has reasonably high sensitivity and specificity.
+
+
+###################Logistic Regression ##############################
+######               BM1                         ####################
+#####             Improvement of model     ##########################
+##Discretized previous and pdays ####################################
+##remove in train_data: Default, Poutcome ###########################
+##improve the model based on the 3 cut off points ###################
+#find which cutoff point is the most optimal ########################
+
+matthews_correlation_coefficient <- function(cm) {
+  TP <- as.numeric(cm[1,1])
+  TN <- as.numeric(cm[2,2])
+  FP <- as.numeric(cm[2,1])
+  FN <- as.numeric(cm[1,2])
+  
+  mcc <- (TP * TN - FP * FN) / sqrt((TP + FP) * (TP + FN) * (TN + FP) * (TN + FN))
+  return(mcc)
+}
+
+# Initialize a list to store results for each threshold
+log_results2 <- vector("list", length = 5)
+
+# Define probability thresholds for classification
+thresholds <- c(0.1, 0.5, 0.9)
+
+# Create a list to store MCC values for each threshold
+avg_mcc_per_threshold <- list()
+
+for (i in 1:5) {
+  set.seed(123)  # Ensure consistent results within each fold
+  
+  # Split into training and test set
+  train_data1 <- data1[-folds1[[i]], ]
+  test_data1 <- data1[folds1[[i]], ]
+  
+  # Check for class imbalance and use ROSE for oversampling if necessary
+  if (sum(train_data1$y == "yes") < sum(train_data1$y == "no")) {
+    train_data1 <- ovun.sample(y ~ ., data = train_data1, method = "over", 
+                               N = 2 * sum(train_data1$y == "no"))$data
+  }
+  
+  # Remove 'default' and 'poutcome' in the train set after cross-validation
+  train_data1 <- subset(train_data1, select = -c(default, poutcome))
+  
+  # Scale only the specified numeric columns
+  numeric_cols_train1 <- c(1, 5, 9, 11, 12)
+  numeric_cols_test1 <- c(1, 6, 10, 12, 13)
+  train_data1[, numeric_cols_train1] <- scale(train_data1[, numeric_cols_train1])
+  test_data1[, numeric_cols_test1] <- scale(test_data1[, numeric_cols_test1])
+  
+  # Train logistic regression
+  set.seed(123)
+  log_model1 <- glm(y ~ ., data = train_data1, family = binomial(link = "logit"))
+  
+  # Predict using the logistic regression model in test data, probabilities obtained
+  log_test_pred2 <- predict(log_model1, test_data1, type = 'response')
+  
+  # Initialize a list to store MCC values for this fold
+  fold_mcc_values <- list()
+  
+  for (threshold in thresholds) {
+    predicted_log_labels2 <- factor(ifelse(log_test_pred2 >= threshold, "yes", "no"))
+    
+    # Generate the confusion matrix
+    cm <- table(Predicted = predicted_log_labels2, Reference = test_data1$y)
+    
+    # Calculate MCC
+    mcc <- matthews_correlation_coefficient(cm)
+    
+    # Store MCC value in the fold_mcc_values list
+    fold_mcc_values[[as.character(threshold)]] <- mcc
+    
+    # Use confusionMatrix function to calculate other metrics
+    confusion_matrix_result <- confusionMatrix(predicted_log_labels2, test_data1$y, 
+                                               positive = "yes", mode = "everything")
+    
+    print(confusion_matrix_result)
+  }
+  
+  # Store fold_mcc_values in the log_results2 list
+  log_results2[[i]] <- list(fold_mcc_values = fold_mcc_values)
+  
+}
+
+
+# Calculate the average MCC for each threshold across all folds
+for (threshold in thresholds) {
+  avg_mcc_per_threshold[[as.character(threshold)]] <- 
+    mean(sapply(log_results2, function(res) res$fold_mcc_values[[as.character(threshold)]]))
+  cat("Threshold:", threshold, "Average MCC:", avg_mcc_per_threshold[[as.character(threshold)]], "\n")
+}
+
+##determine based on the MCC which is the highest and c=0.9 gives the highest MCC
+#use c=0.9 to improve on the model and evaluate it using the test data
+##Improvement of model for Logistic Regression BM1 ###############################
+
+
+matthews_correlation_coefficient <- function(cm) {
+  TP <- as.numeric(cm[1,1])
+  TN <- as.numeric(cm[2,2])
+  FP <- as.numeric(cm[2,1])
+  FN <- as.numeric(cm[1,2])
+  
+  mcc <- (TP * TN - FP * FN) / sqrt((TP + FP) * (TP + FN) * (TN + FP) * (TN + FN))
+  return(mcc)
+}
+
+# Prepare for 5-fold cross-validation
+set.seed(123)
+folds2 <- createFolds(data1$y, k=5)
+
+# Initialize a list to store AUC values for each fold
+log_auc_values2 <- list()
+
+log_results2 <- list()
+log_proportions2 <- list()
+
+for(i in 1:5) {
+  # Split into training and test set
+  train_data1 <- data1[-folds1[[i]],]
+  test_data1 <- data1[folds1[[i]],]
+  
+  # Check for class imbalance and use ROSE for oversampling if necessary
+  set.seed(123)
+  if(sum(train_data1$y == "yes") < sum(train_data1$y == "no")) {
+    train_data1 <- ovun.sample(y ~ ., data = train_data1, method = "over", 
+                               N = 2*sum(train_data1$y == "no"))$data
+  }
+  #remove default and poutcome in train set after cross-validation
+  train_data1 <- subset(train_data1, select= c(-default, -poutcome))
+  
+  # Scale only the specified numeric columns
+  numeric_cols_test1 <- c(1, 6, 10, 12, 13)
+  numeric_cols_train1 <- c(1, 5, 9, 11, 12)
+  train_data1[, numeric_cols_train1] <- scale(train_data1[, numeric_cols_train1])
+  test_data1[, numeric_cols_test1] <- scale(test_data1[, numeric_cols_test1])
+  
+  # Train log regression
+  set.seed(123)
+  log_model1 <- glm(y ~., data = train_data1, family = binomial(link = "logit"))
+  
+  ## to predict using logistic regression model in test data, probabilities obtained
+  # Validate the model
+  log_test_pred2 <- predict(log_model1, test_data1,type = 'response')
+  predicted_log_labels2 <- factor(ifelse(log_test_pred2>= 0.9, "yes", "no"))
+  
+  #generating confusion matrix
+  table_log2 <- table(Predicted = predicted_log_labels2, Reference = test_data1[,13])
+  table_log2
+  
+  test_data_labels2 <- as.factor(test_data1$y)
+  length(test_data_labels2)
+  length(predicted_log_labels2)
+  
+  str(test_data_labels2)
+  str(predicted_log_labels2)
+  
+  table(test_data_labels2)
+  table(predicted_log_labels2)
+  if(!identical(levels(predicted_log_labels2), levels(test_data_labels2))) {
+    levels(predicted_log_labels2) <- levels(test_data_labels2)
+  }
+  
+  #confusion matrix
+  cm_metrics2 <- confusionMatrix(predicted_log_labels2, test_data_labels2, 
+                                 positive = "yes",mode = "everything")
+  print(cm_metrics2)
+  cm <- confusionMatrix(predicted_log_labels2, test_data_labels2, 
+                        positive = "yes",mode = "everything")$table
+  mcc <- matthews_correlation_coefficient(cm)
+  log_results2[[i]] <- list(confusion=cm, MCC=mcc)
+  
+  # Calculate AUC
+  auc2 <- auc(roc(test_data1$y, log_test_pred2))
+  
+  # Store AUC values in the list
+  log_auc_values2[[i]] <- auc2
+  
+  
+  # Print the confusion matrix
+  cat(sprintf("Fold %d Confusion Matrix:\n", i))
+  print(cm)
+  
+}
+
+log_avg_mcc2 <- mean(sapply(log_results2, function(res) res$MCC))
+log_avg_mcc2
+log_auc_values2
+
+##########Logistic Regression ###################################
+###########Business model 2######################################
+###baseline w discretized previous and pdays#####################
+##remove in train_data: Default, Poutcome, Duration, Campaign####
+
+matthews_correlation_coefficient <- function(cm) {
+  TP <- as.numeric(cm[1,1])
+  TN <- as.numeric(cm[2,2])
+  FP <- as.numeric(cm[2,1])
+  FN <- as.numeric(cm[1,2])
+  
+  mcc <- (TP * TN - FP * FN) / sqrt((TP + FP) * (TP + FN) * (TN + FP) * (TN + FN))
+  return(mcc)
+}
+
+# Prepare for 5-fold cross-validation
+set.seed(123)
+folds3 <- createFolds(data1$y, k=5)
+
+# Initialize a list to store AUC values for each fold
+log_auc_values3 <- list()
+
+log_results3 <- list()
+log_proportions3 <- list()
+
+for(i in 1:5) {
+  # Split into training and test set
+  train_data1 <- data1[-folds3[[i]],]
+  test_data1 <- data1[folds3[[i]],]
+  
+  # Check for class imbalance and use ROSE for oversampling if necessary
+  set.seed(123)
+  if(sum(train_data1$y == "yes") < sum(train_data1$y == "no")) {
+    train_data1 <- ovun.sample(y ~ ., data = train_data1, method = "over", 
+                               N = 2*sum(train_data1$y == "no"))$data
+  }
+  # Remove 'default','poutcome','duration','campaign' in the train set after cross-validation
+  train_data1 <- subset(train_data1, select = -c(default, poutcome, duration,campaign))
+  
+  # Scale only the specified numeric columns
+  numeric_cols_test1 <- c(1, 6, 10, 12, 13)
+  numeric_cols_train1 <- c(1, 5, 9)
+  train_data1[, numeric_cols_train1] <- scale(train_data1[, numeric_cols_train1])
+  test_data1[, numeric_cols_test1] <- scale(test_data1[, numeric_cols_test1])
+  
+  # Train log regression
+  set.seed(123)
+  log_model3 <- glm(y ~., data = train_data1, family = binomial(link = "logit"))
+  
+  ## to predict using logistic regression model in test data, probabilities obtained
+  # Validate the model
+  log_test_pred3 <- predict(log_model3, test_data1,type = 'response')
+  predicted_log_labels1 <- factor(ifelse(log_test_pred3>= 0.5, "yes", "no"))
+  
+  #generating confusion matrix
+  table_log3 <- table(Predicted = predicted_log_labels1, Reference = test_data1[,11])
+  table_log3
+  
+  test_data_labels1 <- as.factor(test_data1$y)
+  length(test_data_labels1)
+  length(predicted_log_labels1)
+  
+  str(test_data_labels1)
+  str(predicted_log_labels1)
+  
+  table(test_data_labels1)
+  table(predicted_log_labels1)
+  if(!identical(levels(predicted_log_labels1), levels(test_data_labels1))) {
+    levels(predicted_log_labels1) <- levels(test_data_labels1)
+  }
+  
+  #confusion matrix
+  cm_metrics1 <- confusionMatrix(predicted_log_labels1, test_data_labels1, 
+                                 positive = "yes",mode = "everything")
+  print(cm_metrics1)
+  cm <- confusionMatrix(predicted_log_labels1, test_data_labels1, 
+                        positive = "yes",mode = "everything")$table
+  mcc <- matthews_correlation_coefficient(cm)
+  log_results3[[i]] <- list(confusion=cm, MCC=mcc)
+  
+  # Calculate AUC
+  auc1 <- auc(roc(test_data1$y, log_test_pred3))
+  
+  # Store AUC values in the list
+  log_auc_values3[[i]] <- auc1
+  
+  # Print the confusion matrix
+  cat(sprintf("Fold %d Confusion Matrix:\n", i))
+  print(cm)
+  
+}
+
+log_avg_mcc3 <- mean(sapply(log_results3, function(res) res$MCC))
+log_avg_mcc3
+log_auc_values3
+
+### finding of the cut-off point###
+#Predict probabilities on the test data
+log_test_pred3 <- predict(log_model3, test_data1,type = 'response')
+test_roc1 = roc(test_data1$y ~ log_test_pred3, plot = TRUE, print.auc = TRUE)
+as.numeric(test_roc1$auc)
+
+#write a function write a function 
+#which allows use to make predictions based on different probability cutoffs.
+
+get_logistic_pred = function(mod, data, res = "y", pos = 1, neg = 0, cut = 0.5) {
+  probs = predict(mod, newdata = data, type = "response")
+  ifelse(probs > cut, pos, neg)
+}
+
+test_pred_10_BM2 = get_logistic_pred(log_model3, data = test_data1, res = "y", 
+                                     pos = "yes", neg = "no", cut = 0.1)
+test_pred_50_BM2 = get_logistic_pred(log_model3, data = test_data1, res = "y", 
+                                     pos = "yes", neg = "no", cut = 0.5)
+test_pred_90_BM2 = get_logistic_pred(log_model3, data = test_data1, res = "y", 
+                                     pos = "yes", neg = "no", cut = 0.9)
+
+test_pred_10_BM2
+length(test_pred_10_BM2)
+length(test_data1$y)
+
+test_tab_10_BM2 = table(predicted = test_pred_10_BM2, actual = test_data1$y)
+test_tab_50_BM2 = table(predicted = test_pred_50_BM2, actual = test_data1$y)
+test_tab_90_BM2 = table(predicted = test_pred_90_BM2, actual = test_data1$y)
+
+test_con_mat_10_BM2 = confusionMatrix(test_tab_10_BM2, positive = "yes")
+test_con_mat_50_BM2 = confusionMatrix(test_tab_50_BM2, positive = "yes")
+test_con_mat_90_BM2 = confusionMatrix(test_tab_90_BM2, positive = "yes")
+
+metrics_BM2 = rbind(
+  
+  c(test_con_mat_10_BM2$overall["Accuracy"], 
+    test_con_mat_10_BM2$byClass["Sensitivity"], 
+    test_con_mat_10_BM2$byClass["Specificity"]),
+  
+  c(test_con_mat_50_BM2$overall["Accuracy"], 
+    test_con_mat_50_BM2$byClass["Sensitivity"], 
+    test_con_mat_50_BM2$byClass["Specificity"]),
+  
+  c(test_con_mat_90_BM2$overall["Accuracy"], 
+    test_con_mat_90_BM2$byClass["Sensitivity"], 
+    test_con_mat_90_BM2$byClass["Specificity"])
+  
+)
+rownames(metrics_BM2) = c("c = 0.10", "c = 0.50", "c = 0.90")
+metrics_BM2
+
+#A good model will have a high AUC, 
+#that is as often as possible a high sensitivity and specificity.
+#balanced trade-off between sensitivity and specificity, 
+##when c=0.9 seems to be a good choice
+#It has reasonably high sensitivity, specificity as well as accuracy
+
+###################Logistic Regression ##############################
+######               BM2                         ####################
+#####             Improvement of model     ##########################
+##Discretized previous and pdays ####################################
+##remove in train_data: Default, Poutcome, Duration, Campaign########
+##improve the model based on the 3 cut off points ###################
+#find which cutoff point is the most optimal ########################
+
+matthews_correlation_coefficient <- function(cm) {
+  TP <- as.numeric(cm[1,1])
+  TN <- as.numeric(cm[2,2])
+  FP <- as.numeric(cm[2,1])
+  FN <- as.numeric(cm[1,2])
+  
+  mcc <- (TP * TN - FP * FN) / sqrt((TP + FP) * (TP + FN) * (TN + FP) * (TN + FN))
+  return(mcc)
+}
+
+# Initialize a list to store results for each threshold
+log_results4 <- vector("list", length = 5)
+
+# Define probability thresholds for classification
+thresholds1 <- c(0.1, 0.5, 0.7)
+
+# Create a list to store MCC values for each threshold
+avg_mcc_per_threshold1 <- list()
+
+for (i in 1:5) {
+  set.seed(123)  # Ensure consistent results within each fold
+  
+  # Split into training and test set
+  train_data1 <- data1[-folds3[[i]], ]
+  test_data1 <- data1[folds3[[i]], ]
+  
+  # Check for class imbalance and use ROSE for oversampling if necessary
+  if (sum(train_data1$y == "yes") < sum(train_data1$y == "no")) {
+    train_data1 <- ovun.sample(y ~ ., data = train_data1, method = "over", 
+                               N = 2 * sum(train_data1$y == "no"))$data
+  }
+  
+  # Remove 'default','poutcome','duration','campaign' in the train set after cross-validation
+  train_data1 <- subset(train_data1, select = -c(default, poutcome, duration,campaign))
+  
+  # Scale only the specified numeric columns
+  numeric_cols_train1 <- c(1, 5, 9)
+  numeric_cols_test1 <- c(1, 6, 10, 12, 13)
+  train_data1[, numeric_cols_train1] <- scale(train_data1[, numeric_cols_train1])
+  test_data1[, numeric_cols_test1] <- scale(test_data1[, numeric_cols_test1])
+  
+  # Train logistic regression
+  set.seed(123)
+  log_model3 <- glm(y ~ ., data = train_data1, family = binomial(link = "logit"))
+  
+  # Predict using the logistic regression model in test data, probabilities obtained
+  log_test_pred2 <- predict(log_model3, test_data1, type = 'response')
+  
+  # Define probability thresholds for classification
+  thresholds1 <- c(0.1, 0.5, 0.7)
+  
+  # Initialize a list to store MCC values for this fold
+  fold_mcc_values1 <- list()
+  
+  for (threshold in thresholds1) {
+    predicted_log_labels2 <- factor(ifelse(log_test_pred2 >= threshold, "yes", "no"))
+    
+    # Generate the confusion matrix
+    cm <- table(Predicted = predicted_log_labels2, Reference = test_data1$y)
+    
+    # Calculate MCC
+    mcc <- matthews_correlation_coefficient(cm)
+    
+    # Store MCC value in the fold_mcc_values1 list
+    fold_mcc_values1[[as.character(threshold)]] <- mcc
+    
+    # Use confusionMatrix function to calculate other metrics
+    confusion_matrix_result <- confusionMatrix(predicted_log_labels2, test_data1$y, 
+                                               positive = "yes", mode = "everything")
+    
+    print(confusion_matrix_result)
+    
+  }
+  
+  # Store fold_mcc_values1 in the log_results2 list
+  log_results4[[i]] <- list(fold_mcc_values1 = fold_mcc_values1)
+}
+
+# Calculate the average MCC for each threshold across all folds
+for (threshold in thresholds1) {
+  avg_mcc_per_threshold1[[as.character(threshold)]] <- 
+    mean(sapply(log_results4, function(res) res$fold_mcc_values1[[as.character(threshold)]]))
+  cat("Threshold:", threshold, "Average MCC:", avg_mcc_per_threshold1[[as.character(threshold)]], "\n")
+}
+
+##determine based on the MCC which is the highest and c=0.7 gives the highest MCC
+#use c=0.7 to improve on the model and evaluate it using the test data
+##Improvement of model for Logistic Regression BM2 ###############################
+
+
+matthews_correlation_coefficient <- function(cm) {
+  TP <- as.numeric(cm[1,1])
+  TN <- as.numeric(cm[2,2])
+  FP <- as.numeric(cm[2,1])
+  FN <- as.numeric(cm[1,2])
+  
+  mcc <- (TP * TN - FP * FN) / sqrt((TP + FP) * (TP + FN) * (TN + FP) * (TN + FN))
+  return(mcc)
+}
+
+# Prepare for 5-fold cross-validation
+set.seed(123)
+folds3 <- createFolds(data1$y, k=5)
+
+# Initialize a list to store AUC values for each fold
+log_auc_values4 <- list()
+
+log_results4 <- list()
+log_proportions4 <- list()
+
+for(i in 1:5) {
+  # Split into training and test set
+  train_data1 <- data1[-folds3[[i]],]
+  test_data1 <- data1[folds3[[i]],]
+  
+  # Check for class imbalance and use ROSE for oversampling if necessary
+  set.seed(123)
+  if(sum(train_data1$y == "yes") < sum(train_data1$y == "no")) {
+    train_data1 <- ovun.sample(y ~ ., data = train_data1, method = "over", 
+                               N = 2*sum(train_data1$y == "no"))$data
+  }
+  # Remove 'default','poutcome','duration','campaign' in the train set after cross-validation
+  train_data1 <- subset(train_data1, select = -c(default, poutcome, duration,campaign))
+  
+  # Scale only the specified numeric columns
+  numeric_cols_test1 <- c(1, 6, 10, 12, 13)
+  numeric_cols_train1 <- c(1, 5, 9)
+  train_data1[, numeric_cols_train1] <- scale(train_data1[, numeric_cols_train1])
+  test_data1[, numeric_cols_test1] <- scale(test_data1[, numeric_cols_test1])
+  
+  # Train log regression
+  set.seed(123)
+  log_model3 <- glm(y ~., data = train_data1, family = binomial(link = "logit"))
+  
+  ## to predict using logistic regression model in test data, probabilities obtained
+  # Validate the model
+  log_test_pred2 <- predict(log_model3, test_data1,type = 'response')
+  predicted_log_labels2 <- factor(ifelse(log_test_pred2>= 0.7, "yes", "no"))
+  
+  #generating confusion matrix
+  table_log2 <- table(Predicted = predicted_log_labels2, Reference = test_data1[,13])
+  table_log2
+  
+  test_data_labels2 <- as.factor(test_data1$y)
+  length(test_data_labels2)
+  length(predicted_log_labels2)
+  
+  str(test_data_labels2)
+  str(predicted_log_labels2)
+  
+  table(test_data_labels2)
+  table(predicted_log_labels2)
+  if(!identical(levels(predicted_log_labels2), levels(test_data_labels2))) {
+    levels(predicted_log_labels2) <- levels(test_data_labels2)
+  }
+  
+  #confusion matrix
+  cm_metrics2 <- confusionMatrix(predicted_log_labels2, test_data_labels2, 
+                                 positive = "yes",mode = "everything")
+  print(cm_metrics2)
+  cm <- confusionMatrix(predicted_log_labels2, test_data_labels2, 
+                        positive = "yes",mode = "everything")$table
+  mcc <- matthews_correlation_coefficient(cm)
+  log_results4[[i]] <- list(confusion=cm, MCC=mcc)
+  
+  # Calculate AUC
+  auc2 <- auc(roc(test_data1$y, log_test_pred2))
+  
+  # Store AUC values in the list
+  log_auc_values4[[i]] <- auc2
+  
+  
+  # Print the confusion matrix
+  cat(sprintf("Fold %d Confusion Matrix:\n", i))
+  print(cm)
+  
+}
+
+log_avg_mcc4 <- mean(sapply(log_results4, function(res) res$MCC))
+log_avg_mcc4
+log_auc_values4
