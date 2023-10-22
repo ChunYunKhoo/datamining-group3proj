@@ -537,15 +537,15 @@ average_metrics2
 #0.9011745   0.6470029   0.9348480   0.5682124   0.9309471 
                                                    
 ##################################################### MODEL TUNE ##############################################
-rf_tune_m <- vector("list", length = 3)
+rf_tune_m <- vector("list", length = 4)
 rf_tune_m_mcc <- list()
-mtry_val <- list(4,6,8)
+mtry_val <- list(2,4,6,8)
 
 #Define your cross-validation folds
 set.seed(123)
 folds <- createFolds(data1$y,k=5)
 
-for (k in 1:3){
+for (k in 1:4){
   rf_tune_m[[k]] <- vector("list", length = 5)
   
   for(i in 1:5) {
@@ -597,12 +597,12 @@ for (k in 1:3){
 }
 
 rf_tune_m_mcc
-save(rf_tune_m, file = "rf_tune_manual2.rds")
+#save(rf_tune_m, file = "rf_tune_manual2.rds")
 
-#mtry = 4  mtry = 6   mtry = 8
-#0.5348563 0.5368851  0.5298793
+#mtry=2    mtry = 4  mtry = 6   mtry = 8
+#0.5537526 0.5348563 0.5368851  0.5298793
 
-########################### Fit on mtry = 6 #################################
+########################### Fit on mtry = 2 #################################
 rf4_result <- list()
 
 # Define your cross-validation folds
@@ -622,7 +622,7 @@ for (i in 1:5) {
   train_oversampled1 <- ovun.sample(y~.,data = train_data1,method = "over", N=2*sum(train_data1$y == "no"))$data
   
   set.seed(123)
-  rf4_model <- randomForest(train_oversampled1[,!(names(train_oversampled1) %in% c("default","poutcome","y"))],train_oversampled1$y,mtry = 6)
+  rf4_model <- randomForest(train_oversampled1[,!(names(train_oversampled1) %in% c("default","poutcome","y"))],train_oversampled1$y,mtry = 2)
   
   #Evaluate the model on the test fold and store results
   predictions <- predict(rf4_model, newdata = test_data1)
@@ -645,7 +645,7 @@ for (i in 1:5) {
 }
 #results
 rf4_result
-save(rf4_result, file = "rf4_result.rds")
+#save(rf4_result, file = "rf4_result.rds")
 #average mcc
 avg_mcc6 <- mean(sapply(rf4_result, function(res) res$MCC))
 avg_mcc6
@@ -656,10 +656,10 @@ average_metrics6
 rf4_result
 
 #mcc
-# 0.5350347
+#0.5598803
 
-#Accuracy      Recall Specificity   Precision         AUC 
-#0.9017716   0.6055951   0.9410099   0.5763259   0.9290742 
+#Accuracy      Recall    Specificity   Precision      AUC 
+#0.8887217    0.7438080   0.9079205   0.5170204   0.9272001 
 ########################################################################################
 #Business Model 2
 ################################ MODEL 1 ###############################################
@@ -780,10 +780,10 @@ for (k in 1:3){
 #save(rf_tune_m1, file = "BM2rf_tune_manual2.rds")
 rf_tune_m_mcc1
 
-#mtry = 4  mtry = 6   mtry = 8
-#0.3272737 0.3228002  0.321316
+#mtry = 2   mtry = 4  mtry = 6   mtry = 8
+#0.3689378 0.3272737 0.3228002  0.321316
 
-######################################### Fit on mtry = 4 ##############################
+######################################### Fit on mtry = 2 ##############################
 rf_result2 <- list()
 
 # Define your cross-validation folds
@@ -803,7 +803,7 @@ for (i in 1:5) {
   train_oversampled1 <- ovun.sample(y~.,data = train_data1,method = "over", N=2*sum(train_data1$y == "no"))$data
   
   set.seed(123)
-  rf_model2 <- randomForest(train_oversampled1[,!(names(train_oversampled1) %in% c("default","poutcome","duration","campaign","y"))],train_oversampled1$y,mtry = 4)
+  rf_model2 <- randomForest(train_oversampled1[,!(names(train_oversampled1) %in% c("default","poutcome","duration","campaign","y"))],train_oversampled1$y,mtry = 2)
   
   #Evaluate the model on the test fold and store results
   predictions <- predict(rf_model2, newdata = test_data1)
@@ -838,10 +838,10 @@ average_metrics4
 #rf_result2
 
 #mcc
-#0.3373783
+#0.3770614
 
 #Accuracy      Recall Specificity   Precision         AUC 
-#0.8747208   0.3624491   0.9425881   0.4554052   0.7769311                                                    
+#0.8573356   0.5095469    0.9034117   0.4114048    0.7843487                                                  
 #####################################  NAIVE BAYES CLASSFIER  #############################
 
 #Business Model 1
