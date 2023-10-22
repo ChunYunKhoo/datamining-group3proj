@@ -2852,3 +2852,202 @@ cat(sprintf("Average AUC: %f\n", avg_auc4))
 #Average Sensitivity: 0.851736
 #Average Specificity: 0.593875
 #Average AUC: 0.722806
+#decision tree 1st model
+#5-fold cross-validation
+set.seed(123)
+dt_cv1 <- createFolds(data1$y, k=5)
+
+dt_result1 <- list()
+dt_proportions <- list()
+
+for(i in 1:5) {
+  # Split into training and validation set
+  set.seed(123)
+  train_data1 <- data1[-dt_cv1[[i]],]
+  test_data1 <- data1[dt_cv1[[i]],]
+  
+  # Check for class imbalance and use ROSE for oversampling if necessary
+  if(sum(train_data1$y == "yes") < sum(train_data1$y == "no")) {
+    train_data1 <- ovun.sample(y ~ ., data = train_data1, method = "over", N = 2*sum(train_data1$y == "no"))$data
+  }
+  #Remove in train_data: default, poutcome
+  #############decision tree###########
+  set.seed(123)
+  dt_model1 <- C5.0(train_data1[,!(names(train_data1) %in% c("default","poutcome","y"))],train_data1$y)
+  dt1_pred <- predict(dt_model1, newdata = test_data1)
+  cm <- confusionMatrix(dt1_pred, reference = test_data1$y,positive = "yes")
+  m <- matthews_correlation_coefficient(cm$table)
+  #get the roc-auc value
+  dt1_pred_prob <- predict(dt_model1, newdata = test_data1,type = "prob")
+  actual_labels_numeric <- ifelse(test_data1$y == "yes", 1, 0)
+  roc_auc <- Metrics::auc(actual_labels_numeric,dt1_pred_prob[,2])
+  metrics_cal = rbind(
+    c(cm$overall["Accuracy"], 
+      cm$byClass["Recall"], 
+      cm$byClass["Specificity"],
+      cm$byClass["Precision"],
+      roc_auc))
+  colnames(metrics_cal) = c("Accuracy", "Recall", "Specificity","Precision","AUC")
+  metrics_cal
+  dt_result1[[i]] <- list(confusion = cm$table,MCC = m,Metric = metrics_cal)
+}
+#result
+dt_result1
+dt_avg_mcc1 <- mean(sapply(dt_result1, function(res) res$MCC))
+dt_avg_mcc1
+##0.4613763
+#average_metrics
+dt_average_metrics1 <- colMeans(do.call(rbind, lapply(dt_result1, function(x) x$Metric)))
+dt_average_metrics1
+#Accuracy      Recall.   Specificity   Precision         AUC 
+#0.8705847    0.6186396   0.9039628   0.4603018      0.8930833 
+
+###############model 1 Boosting#####################
+#decision tree 2nd model
+#5-fold cross-validation
+set.seed(123)
+dt_cv2<- createFolds(data$y, k=5)
+dt_proportions <- list()
+dt_result1boost <- list()
+for(i in 1:5) {
+  # Split into training and validation set
+  set.seed(123)
+  train_data1 <- data1[-dt_cv2[[i]],]
+  test_data1 <- data1[dt_cv2[[i]],]
+  
+  # Check for class imbalance and use ROSE for oversampling if necessary
+  if(sum(train_data1$y == "yes") < sum(train_data1$y == "no")) {
+    train_data1 <- ovun.sample(y ~ ., data = train_data1, method = "over", N = 2*sum(train_data1$y == "no"))$data
+  }
+  #Remove in train_data: default, poutcome
+  #############decision tree###########
+  set.seed(123)
+  dt1_boost10 <- C5.0(train_data1[,!(names(train_data1) %in% c("default","poutcome","y"))],train_data1$y,trials = 10)
+  dt_pred_boost <- predict(dt1_boost10, newdata = test_data1)
+  cm <- confusionMatrix(dt_pred_boost, reference = test_data1$y,positive = "yes")
+  m <- matthews_correlation_coefficient(cm$table)
+  #get the roc-auc value
+  dt_pred_boost_prob <- predict(dt1_boost10, newdata = test_data1,type = "prob")
+  actual_labels_numeric <- ifelse(test_data1$y == "yes", 1, 0)
+  roc_auc <- Metrics::auc(actual_labels_numeric,dt_pred_boost_prob[,2])
+  metrics_cal = rbind(
+    c(cm$overall["Accuracy"], 
+      cm$byClass["Recall"], 
+      cm$byClass["Specificity"],
+      cm$byClass["Precision"],
+      roc_auc))
+  colnames(metrics_cal) = c("Accuracy", "Recall", "Specificity","Precision","AUC")
+  metrics_cal
+  dt_result1boost[[i]] <- list(confusion = cm$table,MCC = m,Metric = metrics_cal)
+}
+#results
+dt_result1boost
+dt_avg_mcc2 <- mean(sapply(dt_result1boost, function(res) res$MCC))
+dt_avg_mcc2##0.4990969
+#average_metrics
+dt_average_metrics2 <- colMeans(do.call(rbind, lapply(dt_result1boost, function(x) x$Metric)))
+dt_average_metrics2
+#   Accuracy   Recall    Specificity   Precision         AUC 
+# 0.8940746   0.5738318   0.9365012    0.5449931     0.9815806 
+
+
+############Business model 2 for decision tree################################################
+#decision tree 3rd model
+#5-fold cross-validation
+set.seed(123)
+dt_cv3 <- createFolds(data$y, k=5)
+
+dt_result2 <- list()
+dt_proportions <- list()
+
+for(i in 1:5) {
+  # Split into training and validation set
+  set.seed(123)
+  train_data1 <- data1[-dt_cv3[[i]],]
+  test_data1 <- data1[dt_cv3[[i]],]
+  
+  # Check for class imbalance and use ROSE for oversampling if necessary
+  if(sum(train_data1$y == "yes") < sum(train_data1$y == "no")) {
+    train_data1 <- ovun.sample(y ~ ., data = train_data1, method = "over", N = 2*sum(train_data1$y == "no"))$data
+  }
+  #Remove in train_data: default, poutcome, duration, campaign
+  #############decision tree###########
+  set.seed(123)
+  dt3 <- C5.0(train_data1[,!(names(train_data1) %in% c("default","poutcome","duration","campaign","y"))],train_data1$y)
+  dt3_pred <- predict(dt3, newdata = test_data1)
+  cm <- confusionMatrix(dt3_pred, reference = test_data1$y,positive = "yes")
+  m <- matthews_correlation_coefficient(cm$table)
+  #get the roc-auc value
+  dt3_pred_prob <- predict(dt3, newdata = test_data1,type = "prob")
+  actual_labels_numeric <- ifelse(test_data1$y == "yes", 1, 0)
+  roc_auc <- Metrics::auc(actual_labels_numeric,dt3_pred_prob[,2])
+  metrics_cal = rbind(
+    c(cm$overall["Accuracy"], 
+      cm$byClass["Recall"], 
+      cm$byClass["Specificity"],
+      cm$byClass["Precision"],
+      roc_auc))
+  colnames(metrics_cal) = c("Accuracy", "Recall", "Specificity","Precision","AUC")
+  metrics_cal
+  dt_result2[[i]] <- list(confusion = cm$table,MCC = m,Metric = metrics_cal)
+}
+#result
+dt_result2
+dt_avg_mcc3 <- mean(sapply(dt_result2, function(res) res$MCC))
+dt_avg_mcc3
+#0.2211623
+#average_metrics
+dt_average_metrics3 <- colMeans(do.call(rbind, lapply(dt_result2, function(x) x$Metric)))
+dt_average_metrics3
+#Accuracy      Recall   Specificity   Precision         AUC 
+#0.8065515   0.3974266   0.8607534   0.2743311       0.7156306 
+
+
+
+###########decision tree 4th model: tuning 3rd model
+#5-fold cross-validation
+set.seed(123)
+dt_cv4<- createFolds(data$y, k=5)
+proportions <- list()
+dt_result2boost <- list()
+for(i in 1:5) {
+  # Split into training and validation set
+  set.seed(123)
+  train_data1 <- data1[-dt_cv4[[i]],]
+  test_data1 <- data1[dt_cv4[[i]],]
+  
+  # Check for class imbalance and use ROSE for oversampling if necessary
+  if(sum(train_data1$y == "yes") < sum(train_data1$y == "no")) {
+    train_data1 <- ovun.sample(y ~ ., data = train_data1, method = "over", N = 2*sum(train_data1$y == "no"))$data
+  }
+  #Remove in train_data: default, poutcome, duration, campaign
+  #############decision tree###########
+  set.seed(123)
+  dt3_boost10 <- C5.0(train_data1[,!(names(train_data1) %in% c("default","poutcome","duration","campaign","y"))],train_data1$y,trials = 10)
+  dt3_pred_boost <- predict(dt3_boost10, newdata = test_data1)
+  cm <- confusionMatrix(dt3_pred_boost, reference = test_data1$y,positive = "yes")
+  m <- matthews_correlation_coefficient(cm$table)
+  #get the roc-auc value
+  dt3_pred_boost_prob <- predict(dt3_boost10, newdata = test_data1,type = "prob")
+  actual_labels_numeric <- ifelse(test_data1$y == "yes", 1, 0)
+  roc_auc <- Metrics::auc(actual_labels_numeric,dt3_pred_boost_prob[,2])
+  metrics_cal = rbind(
+    c(cm$overall["Accuracy"], 
+      cm$byClass["Recall"], 
+      cm$byClass["Specificity"],
+      cm$byClass["Precision"],
+      roc_auc))
+  colnames(metrics_cal) = c("Accuracy", "Recall", "Specificity","Precision","AUC")
+  metrics_cal
+  dt_result2boost[[i]] <- list(confusion = cm$table,MCC = m,Metric = metrics_cal)
+}
+#results
+dt_result2boost
+dt_avg_mcc4 <- mean(sapply(dt_result2boost, function(res) res$MCC))
+dt_avg_mcc4
+#0.3006906
+#average_metrics
+dt_average_metrics4 <- colMeans(do.call(rbind, lapply(dt_result2boost, function(x) x$Metric)))
+dt_average_metrics4
+#Accuracy      Recall    Specificity   Precision         AUC 
+#0.8708722    0.3197166   0.9438907    0.4302007     0.9815806 
