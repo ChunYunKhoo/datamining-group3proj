@@ -2948,7 +2948,7 @@ dt_avg_mcc2##0.4990969
 dt_average_metrics2 <- colMeans(do.call(rbind, lapply(dt_result1boost, function(x) x$Metric)))
 dt_average_metrics2
 #   Accuracy   Recall    Specificity   Precision         AUC 
-# 0.8940746   0.5738318   0.9365012    0.5449931     0.9815806 
+# 0.8940746   0.5738318   0.9365012    0.5449931     0.9080191 
 
 
 ############Business model 2 for decision tree################################################
