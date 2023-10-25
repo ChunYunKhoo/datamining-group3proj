@@ -1316,8 +1316,8 @@ test_pred_10_BM2 = get_logistic_pred(log_model3, data = test_data1, res = "y",
                                      pos = "yes", neg = "no", cut = 0.1)
 test_pred_50_BM2 = get_logistic_pred(log_model3, data = test_data1, res = "y", 
                                      pos = "yes", neg = "no", cut = 0.5)
-test_pred_90_BM2 = get_logistic_pred(log_model3, data = test_data1, res = "y", 
-                                     pos = "yes", neg = "no", cut = 0.9)
+test_pred_70_BM2 = get_logistic_pred(log_model3, data = test_data1, res = "y", 
+                                     pos = "yes", neg = "no", cut = 0.7)
 
 test_pred_10_BM2
 length(test_pred_10_BM2)
@@ -1325,11 +1325,11 @@ length(test_data1$y)
 
 test_tab_10_BM2 = table(predicted = test_pred_10_BM2, actual = test_data1$y)
 test_tab_50_BM2 = table(predicted = test_pred_50_BM2, actual = test_data1$y)
-test_tab_90_BM2 = table(predicted = test_pred_90_BM2, actual = test_data1$y)
+test_tab_70_BM2 = table(predicted = test_pred_90_BM2, actual = test_data1$y)
 
 test_con_mat_10_BM2 = confusionMatrix(test_tab_10_BM2, positive = "yes")
 test_con_mat_50_BM2 = confusionMatrix(test_tab_50_BM2, positive = "yes")
-test_con_mat_90_BM2 = confusionMatrix(test_tab_90_BM2, positive = "yes")
+test_con_mat_70_BM2 = confusionMatrix(test_tab_90_BM2, positive = "yes")
 
 metrics_BM2 = rbind(
   
@@ -1341,12 +1341,12 @@ metrics_BM2 = rbind(
     test_con_mat_50_BM2$byClass["Sensitivity"], 
     test_con_mat_50_BM2$byClass["Specificity"]),
   
-  c(test_con_mat_90_BM2$overall["Accuracy"], 
-    test_con_mat_90_BM2$byClass["Sensitivity"], 
-    test_con_mat_90_BM2$byClass["Specificity"])
+  c(test_con_mat_70_BM2$overall["Accuracy"], 
+    test_con_mat_70_BM2$byClass["Sensitivity"], 
+    test_con_mat_70_BM2$byClass["Specificity"])
   
 )
-rownames(metrics_BM2) = c("c = 0.10", "c = 0.50", "c = 0.90")
+rownames(metrics_BM2) = c("c = 0.10", "c = 0.50", "c = 0.70")
 metrics_BM2
 
 #A good model will have a high AUC, 
