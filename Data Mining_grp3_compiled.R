@@ -517,6 +517,7 @@ matthews_correlation_coefficient <- function(cm) {
   mcc <- (tp * tn - fp * fn) / sqrt((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn))
   return(mcc)
 }
+
 #################################### RANDOM FOREST CLASSIFICATION#########################
 #Business Model 1
 #################################### MODEL 1 #############################################
@@ -545,17 +546,11 @@ for (i in 1:5) {
   predictions <- predict(rf2_model, newdata = test_data1)
   cm <- confusionMatrix(predictions, reference = test_data1$y,positive = "yes")
   m <- matthews_correlation_coefficient(cm$table)
-  
-  #get the roc-auc value
-  pred_prob <- predict(rf2_model, newdata = test_data1,type = "prob")
-  actual_labels_numeric <- ifelse(test_data1$y == "yes", 1, 0)
-  roc_auc <- Metrics::auc(actual_labels_numeric,pred_prob[,2])
   metrics_cal = rbind(
     c(cm$overall["Accuracy"], 
       cm$byClass["Recall"], 
       cm$byClass["Specificity"],
-      cm$byClass["Precision"],
-      roc_auc))
+      cm$byClass["Precision"]))
   colnames(metrics_cal) = c("Accuracy", "Recall", "Specificity","Precision","AUC")
   metrics_cal
   rf2_result[[i]] <- list(confusion = cm$table,MCC = m,Metric = metrics_cal)
@@ -573,8 +568,8 @@ average_metrics2
 #rf2_result
 #avg_mcc2
 #0.5503525
-#Accuracy      Recall Specificity   Precision         AUC 
-#0.9011745   0.6470029   0.9348480   0.5682124   0.9309471 
+#Accuracy      Recall Specificity   Precision         
+#0.9011745   0.6470029   0.9348480   0.5682124    
                                                    
 ##################################################### MODEL TUNE ##############################################
 rf_tune_m <- vector("list", length = 4)
@@ -613,16 +608,13 @@ for (k in 1:4){
     cm <- confusionMatrix(prediction, mode = "everything", reference = valid_data1$y, positive = "yes")
     #create MCC function and find MCC value, store in m. 
     m <- matthews_correlation_coefficient(cm$table)
-    pred_prob <- predict(tune, newdata = valid_data1,type = "prob")
-    actual <- ifelse(valid_data1$y == "yes", 1, 0)
-    roc_auc <- Metrics::auc(actual,pred_prob[,2])
     metrics_cal = rbind(
       c(cm$overall["Accuracy"], 
         cm$byClass["Recall"], 
         cm$byClass["Specificity"],
         cm$byClass["Precision"],
         roc_auc))
-    colnames(metrics_cal) = c("Accuracy", "Recall", "Specificity","Precision","AUC")
+    colnames(metrics_cal) = c("Accuracy", "Recall", "Specificity","Precision")
     metrics_cal
     
     #store confusion matrix and MCC
@@ -669,17 +661,12 @@ for (i in 1:5) {
   cm <- confusionMatrix(predictions, reference = test_data1$y,positive = "yes")
   m <- matthews_correlation_coefficient(cm$table)
   
-  #get the roc-auc value
-  pred_prob <- predict(rf4_model, newdata = test_data1,type = "prob")
-  actual_labels_numeric <- ifelse(test_data1$y == "yes", 1, 0)
-  roc_auc <- Metrics::auc(actual_labels_numeric,pred_prob[,2])
   metrics_cal = rbind(
     c(cm$overall["Accuracy"], 
       cm$byClass["Recall"], 
       cm$byClass["Specificity"],
-      cm$byClass["Precision"],
-      roc_auc))
-  colnames(metrics_cal) = c("Accuracy", "Recall", "Specificity","Precision","AUC")
+      cm$byClass["Precision"]))
+  colnames(metrics_cal) = c("Accuracy", "Recall", "Specificity","Precision")
   metrics_cal
   rf4_result[[i]] <- list(confusion = cm$table,MCC = m,Metric = metrics_cal)
 }
@@ -693,13 +680,13 @@ avg_mcc6
 average_metrics6 <- colMeans(do.call(rbind, lapply(rf4_result, function(x) x$Metric)))
 average_metrics6
 # Display the average metrics
-rf4_result
+#rf4_result
 
 #mcc
 #0.5598803
 
-#Accuracy      Recall    Specificity   Precision      AUC 
-#0.8887217    0.7438080   0.9079205   0.5170204   0.9272001 
+#Accuracy      Recall    Specificity   Precision     
+#0.8887217    0.7438080   0.9079205   0.5170204   
 ########################################################################################
 #Business Model 2
 ################################ MODEL 1 ###############################################
@@ -728,23 +715,18 @@ for (i in 1:5) {
   cm <- confusionMatrix(predictions, reference = test_data1$y,positive = "yes")
   m <- matthews_correlation_coefficient(cm$table)
   
-  #get the roc-auc value
-  pred_prob <- predict(rf_model1, newdata = test_data1,type = "prob")
-  actual_labels_numeric <- ifelse(test_data1$y == "yes", 1, 0)
-  roc_auc <- Metrics::auc(actual_labels_numeric,pred_prob[,2])
   metrics_cal = rbind(
     c(cm$overall["Accuracy"], 
       cm$byClass["Recall"], 
       cm$byClass["Specificity"],
-      cm$byClass["Precision"],
-      roc_auc))
-  colnames(metrics_cal) = c("Accuracy", "Recall", "Specificity","Precision","AUC")
+      cm$byClass["Precision"]))
+  colnames(metrics_cal) = c("Accuracy", "Recall", "Specificity","Precision")
   metrics_cal
   rf_result1[[i]] <- list(confusion = cm$table,MCC = m,Metric = metrics_cal)
 }
 #results
 rf_result1
-save(rf_result1, file = "rf_result1_without.rds")
+#save(rf_result1, file = "rf_result1_without.rds")
 #average mcc
 avg_mcc1 <- mean(sapply(rf_result1, function(res) res$MCC))
 avg_mcc1
@@ -755,9 +737,9 @@ average_metrics1
 #rf_result1
 #avg_mcc2
 #0.3513213
-# Accuracy      Recall Specificity   Precision         AUC 
-# 0.8698546   0.4100953   0.9307650   0.4395941   0.7821059 
-##################################### Model Tune ########################################             
+# Accuracy      Recall Specificity   Precision       
+# 0.8698546   0.4100953   0.9307650   0.4395941    
+##################################### Model Tune #########################################               
 rf_tune_m1 <- vector("list", length = 4)
 rf_tune_m_mcc1 <- list()
 mtry_val <- list(2,4,6,8)
@@ -794,16 +776,12 @@ for (k in 1:4){
     cm <- confusionMatrix(prediction, mode = "everything", reference = valid_data1$y, positive = "yes")
     #create MCC function and find MCC value, store in m. 
     m <- matthews_correlation_coefficient(cm$table)
-    pred_prob <- predict(tune1, newdata = valid_data1,type = "prob")
-    actual <- ifelse(valid_data1$y == "yes", 1, 0)
-    roc_auc <- Metrics::auc(actual,pred_prob[,2])
     metrics_cal = rbind(
       c(cm$overall["Accuracy"], 
         cm$byClass["Recall"], 
         cm$byClass["Specificity"],
-        cm$byClass["Precision"],
-        roc_auc))
-    colnames(metrics_cal) = c("Accuracy", "Recall", "Specificity","Precision","AUC")
+        cm$byClass["Precision"]))
+    colnames(metrics_cal) = c("Accuracy", "Recall", "Specificity","Precision")
     metrics_cal
     
     #store confusion matrix and MCC
@@ -850,17 +828,12 @@ for (i in 1:5) {
   cm <- confusionMatrix(predictions, reference = test_data1$y,positive = "yes")
   m <- matthews_correlation_coefficient(cm$table)
   
-  #get the roc-auc value
-  pred_prob <- predict(rf_model2, newdata = test_data1,type = "prob")
-  actual_labels_numeric <- ifelse(test_data1$y == "yes", 1, 0)
-  roc_auc <- Metrics::auc(actual_labels_numeric,pred_prob[,2])
   metrics_cal = rbind(
     c(cm$overall["Accuracy"], 
       cm$byClass["Recall"], 
       cm$byClass["Specificity"],
-      cm$byClass["Precision"],
-      roc_auc))
-  colnames(metrics_cal) = c("Accuracy", "Recall", "Specificity","Precision","AUC")
+      cm$byClass["Precision"]))
+  colnames(metrics_cal) = c("Accuracy", "Recall", "Specificity","Precision")
   metrics_cal
   rf_result2[[i]] <- list(confusion = cm$table,MCC = m,Metric = metrics_cal)
 }
@@ -880,8 +853,8 @@ average_metrics4
 #mcc
 #0.3770614
 
-#Accuracy      Recall Specificity   Precision         AUC 
-#0.8573356   0.5095469    0.9034117   0.4114048    0.7843487                                                  
+#Accuracy      Recall Specificity   Precision       
+#0.8573356   0.5095469    0.9034117   0.4114048                                                 
 
 
 ##########################Logistic Regression########################
