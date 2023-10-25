@@ -70,12 +70,12 @@ prop.table(table(data$y))
 #target variable seems highly imbalanced towards no (> 88%)
 
 
-##############DATA EXPLORATION ###########################################
+##############DATA EXPLORATION ############################################
 
 #pairplot for numerical variables to get an overview
 num_var <- data[,c("age","balance","duration", "campaign", "pdays", "previous", "day")]
 ggpairs(num_var, title="exploration of numeric variables")+
-theme(axis.text.x = element_text(angle = 90, hjust = 1, size=8))
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, size=8))
 # ggcorrplot(cor(num_var), method = "number")
 #pdays and previous have a corr = 0.45, but still not that high that it is concerning
 
@@ -128,9 +128,9 @@ grid.arrange(
 
 #histogram
 grid.arrange(
-ggplot(data = data, aes(x=balance, fill=y)) + geom_histogram(position = "identity") + xlim(-3000,8000),
-nrow = 1,
-top="balance and y"
+  ggplot(data = data, aes(x=balance, fill=y)) + geom_histogram(position = "identity", apha = 0.8) + xlim(-3000,8000),
+  nrow = 1,
+  top="balance and y"
 )
 
 #distribution of no and yes across balance is similar. balance may not be significant. 
@@ -185,6 +185,9 @@ grid.arrange(
 ggplot(data = data, aes(campaign, duration, colour = y)) + geom_point()
 #number of people subscribing is higher when number of contacts performed are low and duration of call is longer (>5 min)
 
+#month, previous,y
+ggplot(data = data, aes(x=month, y=previous, fill = y)) + geom_boxplot(alpha = 0.5) + scale_y_continuous(name="previous", limits=c(0,10))
+
 
 ################pdays and y
 
@@ -207,9 +210,9 @@ CrossTable(data$pdays, data$y)
 
 #zoom in to see that majority of observations have '-1'value
 grid.arrange(
-ggplot(data = data, aes(x = pdays, fill=y)) + geom_histogram(binwidth = 1)+
-scale_x_continuous(breaks=c(-1,0,1,2,3,4,5,6,7), limits = c(-2,7)),
-top="pdays and y"
+  ggplot(data = data, aes(x = pdays, fill=y)) + geom_histogram(binwidth = 1)+
+    scale_x_continuous(breaks=c(-1,0,1,2,3,4,5,6,7), limits = c(-2,7)),
+  top="pdays and y"
 )
 
 #observe distribution for positive values of pdays
@@ -311,7 +314,7 @@ grid.arrange(
 ##singles have highest proportion of subscribing.
 #mar, dec, oct, sep have higher proportion of yes than nos. for dec
 
-##pull out unknowns to show that only unknowns for poutcome is overwhelming and will be removed 
+#####pull out unknowns to show that only unknowns for poutcome is significantly large and will be removed 
 grid.arrange(
   
   ggplot(data=data, mapping=aes(x=job, fill=y)) +
@@ -340,16 +343,49 @@ grid.arrange(
   top="Categorical variables with 'unknown'")
 
 
+#month,y
+
+grid.arrange(
+  
+  ggplot(data=data, mapping=aes(x=month, fill=y)) +
+    geom_bar(position = "fill") +
+    scale_y_continuous(name="proportion")+
+    theme(axis.text.x = element_text(angle = 90, hjust = 0.5, size=9)),
+  
+  ggplot(data=data, mapping=aes(x=month, fill=y)) +
+    geom_bar(position = "identity") +
+    scale_y_continuous(name="Count")+
+    theme(axis.text.x = element_text(angle = 90, hjust = 0.5, size=9)),
+  
+  nrow = 2,
+  
+  top = "'month' and y"
+)
+
+#job and balance, y
+ggplot(data = data, aes(job,balance, colour = y)) + geom_point() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 0, size=7))
+
+#education and balance, y
+ggplot(data = data, aes(education,balance, colour = y)) + geom_point() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 0, size=7))
+
+#contact,duration, y
+ggplot(data = data, aes(contact,duration, colour = y)) + geom_point() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 0, size=7))
+
 #####nature of call vs y
 
 #campaigns, duration, y
 ggplot(data = data, aes(campaign, duration, colour = y)) + geom_point()
 #number of people subscribing is higher when number of contacts performed are low and duration of call is longer (>5 min)
 
-
 #previous, poutcome and y
 ggplot(data = data, aes(previous, poutcome, colour = y)) + geom_point()
 #clients who were previously contacted with failure also tend to not subscribe to term deposit.
+
+head(data$balance)
+
 
 p_y <- data %>%group_by(y) %>% summarise(mean(pdays)) 
 p_y
@@ -370,13 +406,13 @@ filter(data, pdays == -1) #36954 customers
 
 #discretizing pdays
 #zoom into range where most positive values lie in order to gauge how to bin
-ggplot(data = data, aes(x = pdays)) +geom_histogram(binwidth = 5) + xlim(0,500) 
+ggplot(data = data, aes(x = pdays)) +geom_histogram(binwidth = 5) + xlim(0,500)
 filter(data, pdays == -1) #36954 customers
 filter(data, pdays > -1 & pdays <= 90) #718 customers were contacted previously within 3 months back
 filter(data, pdays > 90 & pdays <= 180) #2480 customers were contacted 3-6 months ago
 filter(data, pdays > 180 & pdays <= 270) #2082 customers in 6-9 months ago
 filter(data, pdays > 270) #2977 customers called more than 9 months ago
-#discretizing previous into 5 categories in new variable pdays_disc
+#discretizing pdays into 5 categories in new variable pdays_disc
 categories_pdays <- cut(data1$pdays, breaks = c(-2, -1, 90, 180, 270, 871),
                         labels = c("nc", "1_90d", "91_180d", "181_270d", "271d_plus"),
                         right = TRUE)
@@ -437,8 +473,9 @@ set.seed(123)
 library(Boruta)
 boruta <- Boruta(y ~ ., data = train, doTrace = 2, maxRuns = 20)
 print(boruta)
-plot(boruta, las = 2, cex.axis = 0.8)
+plot(boruta, las = 2, cex.axis = 0.8, xlab = " ")
 attStats(boruta)
+getSelectedAttributes(boruta.bank, withTentative = F)
 Makedecision <- TentativeRoughFix(boruta)  # help us to make quick decision
 print(Makedecision)
 #all confirmed except 'default'
@@ -458,6 +495,7 @@ print(results)
 predictors(results)
 #before discretisation: #all except 'default'
 #after discretisation: all
+rfRFE$rank
 
 # plot the results
 ggplot(data = results , metric = "Accuracy") 
@@ -467,7 +505,9 @@ predictions <- predict(results, test[, results$optVariables])
 identical(levels(predictions),levels(test$y))
 levels <- levels(predictions[, 1])
 levels <- levels[order(levels)]  
-confusionMatrix(table(ordered(predictions[,1],levels), ordered(test_data$y, levels)), mode = "everything", positive = 'yes')
+confusionMatrix(table(ordered(predictions[,1],levels), ordered(test$y, levels)), mode = "everything", positive = 'yes')
+#0.9077 accuracy and 0.4963 kappa value.
+
 ################################## MCC #################################################
 matthews_correlation_coefficient <- function(cm) {
   tp <- as.numeric(cm[2, 2])
@@ -842,790 +882,7 @@ average_metrics4
 
 #Accuracy      Recall Specificity   Precision         AUC 
 #0.8573356   0.5095469    0.9034117   0.4114048    0.7843487                                                  
-#####################################  NAIVE BAYES CLASSFIER  #############################
 
-#Business Model 1
-
-####################### MODEL 1 ##################################
-
-str(data)
-
-matthews_correlation_coefficient <- function(cm) {
-  tp <- as.numeric(cm[2, 2])
-  tn <- as.numeric(cm[1, 1])
-  fp <- as.numeric(cm[2, 1])
-  fn <- as.numeric(cm[1, 2])
-  mcc <- (tp * tn - fp * fn) / sqrt((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn))
-  return(mcc)
-}
-
-results1 <- list()
-
-set.seed(123)
-folds <- createFolds(data$y, k=5)
-
-library("ROSE")
-
-for(i in 1:5) {
-  # Split into training and validation set
-  train_data <- data[-folds[[i]],]
-  test_data <- data[folds[[i]],]
-  
-  # Check for class imbalance and use ROSE for oversampling if necessary
-  
-  train_data <- subset(train_data,select = -c(default,poutcome))
-  str(train_data)
-  set.seed(123)
-  train_data1 <- ovun.sample(y ~ .,data = train_data, method = "over", N = 2*sum(train_data$y == "no"))$data
-  str(train_data)
-  
-  # laplace_tuning <- list(1,2,3,4,5)
-  
-  #train model
-  nb_model1 <- naiveBayes(y~ ., data = train_data) 
-  
-  #predict on test data and evaluate, then store 
-  nb_prediction1 <- predict(nb_model1, newdata = test_data)   
-  cm <- confusionMatrix(nb_prediction1, mode = "everything", reference = test_data$y, positive = "yes")
-  cm
-  #create MCC function and find MCC value, store in m. 
-  m <- matthews_correlation_coefficient(cm$table)
-  m
-  pred1_prob <- predict(nb_model1, newdata = test_data,type = "raw")
-  test_data$y <- ifelse(test_data$y == "yes", 1, 0)
-  roc_auc <- Metrics::auc(test_data$y,pred1_prob[,2])
-  metrics_cal = rbind(
-    c(cm$overall["Accuracy"], 
-      cm$byClass["Sensitivity"],
-      cm$byClass["Specificity"],
-      cm$byClass["Precision"],
-      roc_auc))
-  colnames(metrics_cal) = c("Accuracy", "Sensitivity", "Specificity","Precision","AUC")
-  metrics_cal
-  
-  #store confusion matrix and MCC
-  results1[[i]] <- list(confusion = cm$table,MCC = m,Metric = metrics_cal)
-}
-
-results1
-avg_mcc1 <- mean(sapply(results1, function(res) res$MCC))
-avg_accuracy <- mean(sapply(results1, function(res) res$Metric[,1]))
-avg_senstivity <- mean(sapply(results1, function(res) res$Metric[,2]))
-avg_specificity <- mean(sapply(results1, function(res) res$Metric[,3]))
-avg_precision <- mean(sapply(results1, function(res) res$Metric[,4]))
-avg_auc <- mean(sapply(results1, function(res) res$Metric[,5]))
-avg_mcc1
-avg_accuracy
-avg_senstivity
-avg_specificity
-avg_precision
-avg_auc
-#0.3936153
-#0.4178745 if only discretisize pdays and previous
-#0.417902 if only discretisize pdays and previous with laplace =1
-
-# avg_mcc1
-# [1] 0.3936153
-# > avg_accuracy
-# [1] 0.8744993
-# > avg_senstivity
-# [1] 0.465302
-# > avg_specificity
-# [1] 0.9287108
-# > avg_precision
-# [1] 0.4641465
-# > avg_auc
-# [1] 0.8521787
-
-####################### MODEL 2 ##################################
-
-#data for analysis, data1 to discretize
-
-summary(data$age)
-#strange outlier of previous = 275. this means the bank called them 275 times previously! quite implausible
-#check top 10 highest values in previous
-ggplot(data = data, aes(x = age)) +geom_histogram() + xlim(0,100)
-CrossTable(data$age, data$y)
-#seems like cdf curve starts flattening after 70, proportion of age seem to stabilize
-plot(ecdf(data[,"age"]),
-     xlim=c(0,100),
-     col="blue")
-#yes, proportion of age seem to stabilize after 70
-plot(ecdf(data[,"age"]),
-     xlim=c(15,70),
-     col="blue")
-filter(data, age > 55 & age <=65)
-filter(data, age > 65 & age <=75) #490 customers
-filter(data, age > 75) #611 customers
-
-categories_age <- cut(data1$age, breaks = c(15,30, 45, 60, 75, 100),
-                      labels = c("16_30y", "31_45y", "46y_60", "60_75y", "75y_plus"),
-                      right = TRUE)
-data1$age_disc <- data.frame(data1$age, categories_age)$categories_age
-CrossTable(data1$age_disc, data1$y)
-str(data1)
-
-#discretize balance
-summary(data$balance)
-#take a closer look at where most of the values of the records lie to gauge how to bin
-ggplot(data = data, aes(x = balance)) +geom_histogram() + xlim(-3000,8000)
-#mostly 0 and then having a long right tail 
-filter(data, balance < 0) 
-filter(data, balance == 0)
-filter(data, balance > 0) 
-categories_balance <- cut(data1$balance, breaks = c(-9000,-1,0, 102128),
-                          labels = c("negative", "zero", "positive"),
-                          right = TRUE)
-data1$balance_disc <- data.frame(data1$balance, categories_balance)$categories_balance
-CrossTable(data1$balance_disc, data1$y)
-str(data1)
-
-#discretize duration
-summary(data$duration)
-ggplot(data = data, aes(x = duration)) +geom_histogram() + xlim(-1,500)
-#overly short conversation
-filter(data, duration <= 100)
-filter(data, duration > 100 & duration <= 200)
-filter(data, duration > 200 & duration <= 300)
-filter(data, duration > 300 & duration <= 400)
-filter(data, duration > 400 & duration <= 500)
-filter(data, duration > 500 & duration <= 600)
-filter(data, duration > 600)
-categories_duration <- cut(data1$duration, breaks = c(-1,100,200,300,400,500,600,5000),
-                           labels = c("100s", "101_200s", "201_300s","301_400s","401_500s","501_600s","601s_plus"),
-                           right = TRUE)
-data1$duration_disc <- data.frame(data1$duration, categories_duration)$categories_duration
-CrossTable(data1$duration_disc, data1$y)
-str(data1)
-
-#discretize day
-data1$day <- as.factor(data1$day)
-str(data1)
-
-#discretize campaign
-summary(data$campaign)
-ggplot(data = data, aes(x = campaign)) +geom_histogram() + xlim(0,20)
-filter(data, campaign == 1)
-filter(data, campaign == 2)
-filter(data,campaign == 3)
-filter(data,campaign > 3)
-categories_campaign <- cut(data1$campaign, breaks = c(0,1,2,3,65),
-                           labels = c("1call", "2call", "3call","4call_plus"),
-                           right = TRUE)
-data1$campaign_disc <- data.frame(data1$campaign, categories_campaign)$categories_campaign
-CrossTable(data1$campaign_disc, data$y)
-str(data1)
-
-#discretizing pdays into 5 categories in new variable pdays_disc
-categories_pdays <- cut(data1$pdays, breaks = c(-2, -1, 90, 180, 270, 871),
-                        labels = c("nc", "1_90d", "91_180d", "181_270d", "271d_plus"),
-                        right = TRUE)
-data1$pdays_disc <- data.frame(data1$pdays, categories_pdays)$categories_pdays
-str(data1)
-CrossTable(data1$pdays_disc, data1$y)
-
-
-#discretizing previous into categories: 1,2,3,4,5,6,7 >7 in new variable previous_disc
-categories_previous <- cut(data1$previous, breaks = c(-1,0, 1, 2, 3, 4, 5, 6, 7, 275),
-                           labels = c("nc", "1c", "2c", "3c", "4c", "5c", "6c", "7c", "8c_plus"),
-                           right = TRUE)
-data1$previous_disc <- data.frame(data1$previous, categories_previous)$categories_previous
-CrossTable(data1$previous_disc, data1$y)
-str(data1)
-
-# Prepare for 5-fold cross-validation
-data1 <- subset(data1, select = c(job,marital,education,housing,loan,contact,day,month,default,poutcome,y,pdays_disc,previous_disc,age_disc,balance_disc,duration_disc,campaign_disc))
-str(data1)
-
-matthews_correlation_coefficient <- function(cm) {
-  tp <- as.numeric(cm[2, 2])
-  tn <- as.numeric(cm[1, 1])
-  fp <- as.numeric(cm[2, 1])
-  fn <- as.numeric(cm[1, 2])
-  mcc <- (tp * tn - fp * fn) / sqrt((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn))
-  return(mcc)
-}
-
-nb_results2 <- list()
-
-set.seed(123)
-folds <- createFolds(data1$y, k=5)
-
-library("ROSE")
-
-for(i in 1:5) {
-  # Split into training and validation set
-  train_data1 <- data1[-folds[[i]],]
-  test_data1 <- data1[folds[[i]],]
-  
-  # Check for class imbalance and use ROSE for oversampling if necessary
-  
-  train_data1 <- subset(train_data1,select = -c(default,poutcome))
-  # test_data1 <- subset(test_data1,select = -c(default,poutcome))
-  str(train_data1)
-  set.seed(123)
-  train_data1 <- ovun.sample(y ~ .,data = train_data1, method = "over", N = 2*sum(train_data1$y == "no"))$data
-  str(train_data1)
-  
-  
-  #train model
-  nb_model2 <- naiveBayes(y~ ., data = train_data1,laplace=1) 
-  
-  #predict on test data and evaluate, then store 
-  nb_prediction2 <- predict(nb_model2, newdata = test_data1)
-  
-  cm <- confusionMatrix(nb_prediction2, mode = "everything", reference = test_data1$y, positive = "yes")
-  cm
-  #create MCC function and find MCC value, store in m. 
-  m <- matthews_correlation_coefficient(cm$table)
-  m
-  pred2_prob <- predict(nb_model2, newdata = test_data1,type = "raw")
-  test_data1$y <- ifelse(test_data1$y == "yes", 1, 0)
-  roc_auc <- Metrics::auc(test_data1$y,pred2_prob[,2])
-  metrics_cal = rbind(
-    c(cm$overall["Accuracy"], 
-      cm$byClass["Sensitivity"],
-      cm$byClass["Specificity"],
-      cm$byClass["Precision"],
-      roc_auc))
-  colnames(metrics_cal) = c("Accuracy", "Sensitivity", "Specificity","Precision","AUC")
-  metrics_cal
-  
-  #store confusion matrix and MCC
-  nb_results2[[i]] <- list(confusion = cm$table,MCC = m,Metric = metrics_cal)
-}
-
-nb_results2
-
-avg_mcc2 <- mean(sapply(nb_results2, function(res) res$MCC))
-avg_mcc2
-
-avg_accuracy2 <- mean(sapply(nb_results2, function(res) res$Metric[,1]))
-avg_senstivity2 <- mean(sapply(nb_results2, function(res) res$Metric[,2]))
-avg_specificity2 <- mean(sapply(nb_results2, function(res) res$Metric[,3]))
-avg_precision2 <- mean(sapply(nb_results2, function(res) res$Metric[,4]))
-avg_auc2 <- mean(sapply(nb_results2, function(res) res$Metric[,5]))
-avg_mcc2
-avg_accuracy2
-avg_senstivity2
-avg_specificity2
-avg_precision2
-avg_auc2
-
-
-# avg_mcc2
-# [1] 0.4221034
-# > avg_accuracy2
-# [1] 0.7920859
-# > avg_senstivity2
-# [1] 0.7963699
-# > avg_specificity2
-# [1] 0.7915183
-# > avg_precision2
-# [1] 0.3360316
-# > avg_auc2
-# [1] 0.8729072
-
-####################MODEL 3: TUNING USING LAPLACE + removing correlated features ################################
-
-#tuning laplace value based on MCC
-
-nb_results3 <- list()
-nb_results3tune <- list()
-
-set.seed(123)
-folds <- createFolds(data1$y, k=5)
-
-library("ROSE")
-
-for (k in 1:5){
-  
-  for(i in 1:5) {
-    # Split into training and validation set
-    train_data1 <- data1[-folds[[i]],]
-    test_data1 <- data1[folds[[i]],]
-    
-    # Check for class imbalance and use ROSE for oversampling if necessary
-    
-    train_data1 <- subset(train_data1,select = -c(default,poutcome))
-    str(train_data1)
-    set.seed(123)
-    train_data1 <- ovun.sample(y ~ .,data = train_data1, method = "over", N = 2*sum(train_data1$y == "no"))$data
-    str(train_data1)
-    
-    laplace <- list(1,2,3,4,5)
-    
-    #train model
-    nb_model3 <- naiveBayes(y~ ., data = train_data1, laplace = laplace[[k]]) 
-    
-    #predict on test data and evaluate, then store 
-    nb_prediction3 <- predict(nb_model3, newdata = test_data1)
-    
-    cm <- confusionMatrix(nb_prediction3, mode = "everything", reference = test_data1$y, positive = "yes")
-    cm
-    #create MCC function and find MCC value, store in m. 
-    m <- matthews_correlation_coefficient(cm$table)
-    m
-    pred3_prob <- predict(nb_model3, newdata = test_data1,type = "raw")
-    test_data1$y <- ifelse(test_data1$y == "yes", 1, 0)
-    roc_auc <- Metrics::auc(test_data1$y,pred3_prob[,2])
-    metrics_cal = rbind(
-      c(cm$overall["Accuracy"], 
-        cm$byClass["Sensitivity"],
-        cm$byClass["Specificity"],
-        cm$byClass["Precision"],
-        roc_auc))
-    colnames(metrics_cal) = c("Accuracy", "Sensitivity", "Specificity","Precision","AUC")
-    metrics_cal
-    
-    #store confusion matrix and MCC
-    nb_results3[[i]] <- list(confusion = cm$table,MCC = m,Metric = metrics_cal)
-  }
-  
-avg_mcc3 <- mean(sapply(nb_results3, function(res) res$MCC))
-avg_mcc3
-nb_results3tune[[k]] <- avg_mcc3
-}
-nb_results3
-nb_results3tune
-
-#avg_mcc before tuning: 0.4221034
-#avg_mcc after tuning:
-# [[1]]
-# [1] 0.4221315
-# 
-# [[2]]
-# [1] 0.4220625
-# 
-# [[3]]
-# [1] 0.4221474
-# 
-# [[4]]
-# [1] 0.4219814
-# 
-# [[5]]
-# [1] 0.42201
-
-#optimal laplace value = 3
-
-################# REMOVING CORRELATED FEATURES ########################################
-
-
-#use laplace = 3, then tune by removing feature previous_disc that has strong association with pdays_disc
-
-#ascertain that cramersV is moderately large for previous_disc and pdays_disc
-library('vcd')
-assocstats(xtabs(~data1$previous_disc + data1$pdays_disc))
-library(rcompanion)
-cramerV(data1$previous_disc, data1$pdays_disc, bias.correct = TRUE) #cramersV is 0.5031
-
-matthews_correlation_coefficient <- function(cm) {
-  tp <- as.numeric(cm[2, 2])
-  tn <- as.numeric(cm[1, 1])
-  fp <- as.numeric(cm[2, 1])
-  fn <- as.numeric(cm[1, 2])
-  mcc <- (tp * tn - fp * fn) / sqrt((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn))
-  return(mcc)
-}
-
-nb_results3 <- list()
-
-str(data1)
-set.seed(123)
-folds <- createFolds(data1$y, k=5)
-
-library("ROSE")
-
-for(i in 1:5) {
-  # Split into training and validation set
-  train_data1 <- data1[-folds[[i]],]
-  test_data1 <- data1[folds[[i]],]
-  
-  
-  #
-  train_data1 <- subset(train_data1,select = -c(default,poutcome,previous_disc))
-  str(train_data1)
-  #oversample training data
-  set.seed(123)
-  train_data1 <- ovun.sample(y ~ .,data = train_data1, method = "over", N = 2*sum(train_data1$y == "no"))$data
-  str(train_data1)
-  
-  
-  #train model
-  nb_model3 <- naiveBayes(y~ ., data = train_data1, laplace=3) 
-  
-  #predict on test data and evaluate, then store 
-  nb_prediction3 <- predict(nb_model3, newdata = test_data1)
-  
-  cm <- confusionMatrix(nb_prediction3, mode = "everything", reference = test_data1$y, positive = "yes")
-  cm
-  #create MCC function and find MCC value, store in m. 
-  m <- matthews_correlation_coefficient(cm$table)
-  m
-  pred3_prob <- predict(nb_model3, newdata = test_data1,type = "raw")
-  test_data1$y <- ifelse(test_data1$y == "yes", 1, 0)
-  roc_auc <- Metrics::auc(test_data1$y,pred3_prob[,2])
-  metrics_cal = rbind(
-    c(cm$overall["Accuracy"], 
-      cm$byClass["Sensitivity"],
-      cm$byClass["Specificity"],
-      cm$byClass["Precision"],
-      roc_auc))
-  colnames(metrics_cal) = c("Accuracy", "Sensitivity", "Specificity","Precision","AUC")
-  metrics_cal
-  
-  #store confusion matrix and MCC
-  nb_results3[[i]] <- list(confusion = cm$table,MCC = m,Metric = metrics_cal)
-}
-
-nb_results3
-avg_mcc3 <- mean(sapply(results3, function(res) res$MCC))
-avg_accuracy3 <- mean(sapply(nb_results3, function(res) res$Metric[,1]))
-avg_senstivity3 <- mean(sapply(nb_results3, function(res) res$Metric[,2]))
-avg_specificity3 <- mean(sapply(nb_results3, function(res) res$Metric[,3]))
-avg_precision3 <- mean(sapply(nb_results3, function(res) res$Metric[,4]))
-avg_auc3 <- mean(sapply(nb_results3, function(res) res$Metric[,5]))
-avg_mcc3
-avg_accuracy3
-avg_senstivity3
-avg_specificity3
-avg_precision3
-avg_auc3 
-
-#remove previous_disc
-# avg_mcc3
-# [1] 0.4349558
-# > avg_accuracy3
-# [1] 0.7946294
-# > avg_senstivity3
-# [1] 0.8150878
-# > avg_specificity3
-# [1] 0.7919191
-# > avg_precision3
-# [1] 0.3416799
-# > avg_auc3 
-# [1] 0.8796205
-#avg_mcc: 0.4349558 if remove previous_disc and laplace = 3
-
-#try removing pdays_disc instead of previous_disc to see which MCC is higher
-nb_results3 <- list()
-
-str(data1)
-set.seed(123)
-folds <- createFolds(data1$y, k=5)
-
-library("ROSE")
-
-for(i in 1:5) {
-  # Split into training and validation set
-  train_data1 <- data1[-folds[[i]],]
-  test_data1 <- data1[folds[[i]],]
-  
-  
-  #
-  train_data1 <- subset(train_data1,select = -c(default,poutcome,pdays_disc))
-  str(train_data1)
-  #oversample training data
-  set.seed(123)
-  train_data1 <- ovun.sample(y ~ .,data = train_data1, method = "over", N = 2*sum(train_data1$y == "no"))$data
-  str(train_data1)
-  
-  
-  #train model
-  nb_model3 <- naiveBayes(y~ ., data = train_data1, laplace=3) 
-  
-  #predict on test data and evaluate, then store 
-  nb_prediction3 <- predict(nb_model3, newdata = test_data1)
-  
-  cm <- confusionMatrix(nb_prediction3, mode = "everything", reference = test_data1$y, positive = "yes")
-  cm
-  #create MCC function and find MCC value, store in m. 
-  m <- matthews_correlation_coefficient(cm$table)
-  m
-  pred3_prob <- predict(nb_model3, newdata = test_data1,type = "raw")
-  test_data1$y <- ifelse(test_data1$y == "yes", 1, 0)
-  roc_auc <- Metrics::auc(test_data1$y,pred3_prob[,2])
-  metrics_cal = rbind(
-    c(cm$overall["Accuracy"], 
-      cm$byClass["Sensitivity"],
-      cm$byClass["Specificity"],
-      cm$byClass["Precision"],
-      roc_auc))
-  colnames(metrics_cal) = c("Accuracy", "Sensitivity", "Specificity","Precision","AUC")
-  metrics_cal
-  
-  #store confusion matrix and MCC
-  nb_results3[[i]] <- list(confusion = cm$table,MCC = m,Metric = metrics_cal)
-}
-
-nb_results3
-avg_mcc3 <- mean(sapply(results3, function(res) res$MCC))
-avg_accuracy3 <- mean(sapply(nb_results3, function(res) res$Metric[,1]))
-avg_senstivity3 <- mean(sapply(nb_results3, function(res) res$Metric[,2]))
-avg_specificity3 <- mean(sapply(nb_results3, function(res) res$Metric[,3]))
-avg_precision3 <- mean(sapply(nb_results3, function(res) res$Metric[,4]))
-avg_auc3 <- mean(sapply(nb_results3, function(res) res$Metric[,5]))
-avg_mcc3
-avg_accuracy3
-avg_senstivity3
-avg_specificity3
-avg_precision3
-avg_auc3 
-
-#MCC higher for previous_disc, remove previous_disc
-
-############################# Business Model 2
-
-# Prepare for 5-fold cross-validation
-data1 <- subset(data1, select = c(job,marital,education,housing,loan,contact,day,month,default,poutcome,y,pdays_disc,previous_disc,age_disc,balance_disc,duration_disc,campaign_disc))
-str(data1)
-
-matthews_correlation_coefficient <- function(cm) {
-  tp <- as.numeric(cm[2, 2])
-  tn <- as.numeric(cm[1, 1])
-  fp <- as.numeric(cm[2, 1])
-  fn <- as.numeric(cm[1, 2])
-  mcc <- (tp * tn - fp * fn) / sqrt((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn))
-  return(mcc)
-}
-
-nb_results2 <- list()
-
-set.seed(123)
-folds <- createFolds(data1$y, k=5)
-
-library("ROSE")
-
-for(i in 1:5) {
-  # Split into training and validation set
-  train_data1 <- data1[-folds[[i]],]
-  test_data1 <- data1[folds[[i]],]
-  
-  # Check for class imbalance and use ROSE for oversampling if necessary
-  
-  train_data1 <- subset(train_data1,select = -c(default,poutcome,duration_disc,campaign_disc))
-  # test_data1 <- subset(test_data1,select = -c(default,poutcome))
-  str(train_data1)
-  set.seed(123)
-  train_data1 <- ovun.sample(y ~ .,data = train_data1, method = "over", N = 2*sum(train_data1$y == "no"))$data
-  str(train_data1)
-  
-  
-  #train model
-  nb_model2 <- naiveBayes(y~ ., data = train_data1) 
-  
-  #predict on test data and evaluate, then store 
-  nb_prediction2 <- predict(nb_model2, newdata = test_data1)
-  
-  cm <- confusionMatrix(nb_prediction2, mode = "everything", reference = test_data1$y, positive = "yes")
-  cm
-  #create MCC function and find MCC value, store in m. 
-  m <- matthews_correlation_coefficient(cm$table)
-  m
-  pred2_prob <- predict(nb_model2, newdata = test_data1,type = "raw")
-  test_data1$y <- ifelse(test_data1$y == "yes", 1, 0)
-  roc_auc <- Metrics::auc(test_data1$y,pred2_prob[,2])
-  metrics_cal = rbind(
-    c(cm$overall["Accuracy"], 
-      cm$byClass["Sensitivity"],
-      cm$byClass["Specificity"],
-      cm$byClass["Precision"],
-      roc_auc))
-  colnames(metrics_cal) = c("Accuracy", "Sensitivity", "Specificity","Precision","AUC")
-  metrics_cal
-  
-  #store confusion matrix and MCC
-  nb_results2[[i]] <- list(confusion = cm$table,MCC = m,Metric = metrics_cal)
-}
-
-nb_results2
-
-avg_mcc2 <- mean(sapply(nb_results2, function(res) res$MCC))
-avg_mcc2
-
-avg_accuracy2 <- mean(sapply(nb_results2, function(res) res$Metric[,1]))
-avg_senstivity2 <- mean(sapply(nb_results2, function(res) res$Metric[,2]))
-avg_specificity2 <- mean(sapply(nb_results2, function(res) res$Metric[,3]))
-avg_precision2 <- mean(sapply(nb_results2, function(res) res$Metric[,4]))
-avg_auc2 <- mean(sapply(nb_results2, function(res) res$Metric[,5]))
-avg_mcc2
-avg_accuracy2
-avg_senstivity2
-avg_specificity2
-avg_precision2
-avg_auc2
-
-# avg_mcc2
-# [1] 0.2616939
-# > avg_accuracy2
-# [1] 0.7175245
-# > avg_senstivity2
-# [1] 0.6532427
-# > avg_specificity2
-# [1] 0.7260409
-# > avg_precision2
-# [1] 0.2400552
-# > avg_auc2
-# [1] 0.7497377
-
-####################MODEL 3: TUNING USING LAPLACE + removing correlated features ################################
-
-#tuning laplace value based on MCC
-
-nb_results3 <- list()
-nb_results3tune <- list()
-
-set.seed(123)
-folds <- createFolds(data1$y, k=5)
-
-library("ROSE")
-
-for (k in 1:5){
-  
-  for(i in 1:5) {
-    # Split into training and validation set
-    train_data1 <- data1[-folds[[i]],]
-    test_data1 <- data1[folds[[i]],]
-    
-    # Check for class imbalance and use ROSE for oversampling if necessary
-    
-    train_data1 <- subset(train_data1,select = -c(default,poutcome,duration_disc,campaign_disc))
-    str(train_data1)
-    set.seed(123)
-    train_data1 <- ovun.sample(y ~ .,data = train_data1, method = "over", N = 2*sum(train_data1$y == "no"))$data
-    str(train_data1)
-    
-    laplace <- list(1,2,3,4,5)
-    
-    #train model
-    nb_model3 <- naiveBayes(y~ ., data = train_data1, laplace = laplace[[k]]) 
-    
-    #predict on test data and evaluate, then store 
-    nb_prediction3 <- predict(nb_model3, newdata = test_data1)
-    
-    cm <- confusionMatrix(nb_prediction3, mode = "everything", reference = test_data1$y, positive = "yes")
-    cm
-    #create MCC function and find MCC value, store in m. 
-    m <- matthews_correlation_coefficient(cm$table)
-    m
-    pred3_prob <- predict(nb_model3, newdata = test_data1,type = "raw")
-    test_data1$y <- ifelse(test_data1$y == "yes", 1, 0)
-    roc_auc <- Metrics::auc(test_data1$y,pred3_prob[,2])
-    metrics_cal = rbind(
-      c(cm$overall["Accuracy"], 
-        cm$byClass["Sensitivity"],
-        cm$byClass["Specificity"],
-        cm$byClass["Precision"],
-        roc_auc))
-    colnames(metrics_cal) = c("Accuracy", "Sensitivity", "Specificity","Precision","AUC")
-    metrics_cal
-    
-    #store confusion matrix and MCC
-    nb_results3[[i]] <- list(confusion = cm$table,MCC = m,Metric = metrics_cal)
-  }
-  avg_mcc3 <- mean(sapply(nb_results3, function(res) res$MCC))
-  avg_mcc3
-  nb_results3tune[[k]] <- avg_mcc3
-}
-nb_results3
-nb_results3tune
-
-#avg_mcc before tuning: 0.4221034
-#avg_mcc after tuning:
-# [[1]]
-# [1] 0.2617164
-# 
-# [[2]]
-# [1] 0.2618271
-# 
-# [[3]]
-# [1] 0.2619164
-# 
-# [[4]]
-# [1] 0.2619834
-# 
-# [[5]]
-# [1] 0.2619899
-
-#optimal laplace value = 5
-
-################# REMOVING CORRELATED FEATURES ########################################
-
-
-#use laplace = 5, then tune by removing feature previous_disc as per business model 1
-
-matthews_correlation_coefficient <- function(cm) {
-  tp <- as.numeric(cm[2, 2])
-  tn <- as.numeric(cm[1, 1])
-  fp <- as.numeric(cm[2, 1])
-  fn <- as.numeric(cm[1, 2])
-  mcc <- (tp * tn - fp * fn) / sqrt((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn))
-  return(mcc)
-}
-
-nb_results3 <- list()
-
-str(data1)
-set.seed(123)
-folds <- createFolds(data1$y, k=5)
-
-library("ROSE")
-
-for(i in 1:5) {
-  # Split into training and validation set
-  train_data1 <- data1[-folds[[i]],]
-  test_data1 <- data1[folds[[i]],]
-  
-  
-  #
-  train_data1 <- subset(train_data1,select = -c(default,poutcome,duration_disc,campaign_disc,previous_disc))
-  str(train_data1)
-  #oversample training data
-  set.seed(123)
-  train_data1 <- ovun.sample(y ~ .,data = train_data1, method = "over", N = 2*sum(train_data1$y == "no"))$data
-  str(train_data1)
-  
-  
-  #train model
-  nb_model3 <- naiveBayes(y~ ., data = train_data1, laplace=5) 
-  
-  #predict on test data and evaluate, then store 
-  nb_prediction3 <- predict(nb_model3, newdata = test_data1)
-  
-  cm <- confusionMatrix(nb_prediction3, mode = "everything", reference = test_data1$y, positive = "yes")
-  cm
-  #create MCC function and find MCC value, store in m. 
-  m <- matthews_correlation_coefficient(cm$table)
-  m
-  pred3_prob <- predict(nb_model3, newdata = test_data1,type = "raw")
-  test_data1$y <- ifelse(test_data1$y == "yes", 1, 0)
-  roc_auc <- Metrics::auc(test_data1$y,pred3_prob[,2])
-  metrics_cal = rbind(
-    c(cm$overall["Accuracy"], 
-      cm$byClass["Sensitivity"],
-      cm$byClass["Specificity"],
-      cm$byClass["Precision"],
-      roc_auc))
-  colnames(metrics_cal) = c("Accuracy", "Sensitivity", "Specificity","Precision","AUC")
-  metrics_cal
-  
-  #store confusion matrix and MCC
-  nb_results3[[i]] <- list(confusion = cm$table,MCC = m,Metric = metrics_cal)
-}
-
-nb_results3
-avg_mcc3 <- mean(sapply(nb_results3, function(res) res$MCC))
-avg_accuracy3 <- mean(sapply(nb_results3, function(res) res$Metric[,1]))
-avg_senstivity3 <- mean(sapply(nb_results3, function(res) res$Metric[,2]))
-avg_specificity3 <- mean(sapply(nb_results3, function(res) res$Metric[,3]))
-avg_precision3 <- mean(sapply(nb_results3, function(res) res$Metric[,4]))
-avg_auc3 <- mean(sapply(nb_results3, function(res) res$Metric[,5]))
-avg_mcc3
-avg_accuracy3
-avg_senstivity3
-avg_specificity3
-avg_precision3
-avg_auc3 
 
 ##########################Logistic Regression########################
 ######               BM1                          ###################
@@ -3050,4 +2307,891 @@ dt_avg_mcc4
 dt_average_metrics4 <- colMeans(do.call(rbind, lapply(dt_result2boost, function(x) x$Metric)))
 dt_average_metrics4
 #Accuracy      Recall    Specificity   Precision         AUC 
-#0.8708722    0.3197166   0.9438907    0.4302007     0.9815806 
+#0.8708722    0.3197166   0.9438907    0.4302007     0.9815806
+
+#####################################  NAIVE BAYES CLASSFIER  #############################
+
+####################### BUSINESS MODEL 1
+
+####################### MODEL 1: RAW #######################
+
+str(data)
+
+matthews_correlation_coefficient <- function(cm) {
+  tp <- as.numeric(cm[2, 2])
+  tn <- as.numeric(cm[1, 1])
+  fp <- as.numeric(cm[2, 1])
+  fn <- as.numeric(cm[1, 2])
+  mcc <- (tp * tn - fp * fn) / sqrt((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn))
+  return(mcc)
+}
+
+results1 <- list()
+
+set.seed(123)
+folds <- createFolds(data$y, k=5)
+
+library("ROSE")
+
+for(i in 1:5) {
+  # Split into training and validation set
+  train_data <- data[-folds[[i]],]
+  test_data <- data[folds[[i]],]
+  
+  # Check for class imbalance and use ROSE for oversampling if necessary
+  
+  #remove poutcome since 81.7% of observations is unknown
+  #remove default as per Boruta feature selection results
+  train_data <- subset(train_data,select = -c(default,poutcome))
+  str(train_data)
+  set.seed(123)
+  train_data1 <- ovun.sample(y ~ .,data = train_data, method = "over", N = 2*sum(train_data$y == "no"))$data
+  str(train_data)
+  
+  # laplace_tuning <- list(1,2,3,4,5)
+  
+  #train model
+  nb_model1 <- naiveBayes(y~ ., data = train_data) 
+  
+  #predict on test data and evaluate, then store 
+  nb_prediction1 <- predict(nb_model1, newdata = test_data)   
+  cm <- confusionMatrix(nb_prediction1, mode = "everything", reference = test_data$y, positive = "yes")
+  cm
+  #create MCC function and find MCC value, store in m. 
+  m <- matthews_correlation_coefficient(cm$table)
+  m
+  pred1_prob <- predict(nb_model1, newdata = test_data,type = "raw")
+  test_data$y <- ifelse(test_data$y == "yes", 1, 0)
+  roc_auc <- Metrics::auc(test_data$y,pred1_prob[,2])
+  metrics_cal = rbind(
+    c(cm$overall["Accuracy"], 
+      cm$byClass["Sensitivity"],
+      cm$byClass["Specificity"],
+      cm$byClass["Precision"],
+      roc_auc))
+  colnames(metrics_cal) = c("Accuracy", "Sensitivity", "Specificity","Precision","AUC")
+  metrics_cal
+  
+  #store confusion matrix and MCC
+  results1[[i]] <- list(confusion = cm$table,MCC = m,Metric = metrics_cal)
+}
+
+results1
+avg_mcc1 <- mean(sapply(results1, function(res) res$MCC))
+avg_accuracy <- mean(sapply(results1, function(res) res$Metric[,1]))
+avg_senstivity <- mean(sapply(results1, function(res) res$Metric[,2]))
+avg_specificity <- mean(sapply(results1, function(res) res$Metric[,3]))
+avg_precision <- mean(sapply(results1, function(res) res$Metric[,4]))
+avg_auc <- mean(sapply(results1, function(res) res$Metric[,5]))
+avg_mcc1
+avg_accuracy
+avg_senstivity
+avg_specificity
+avg_precision
+avg_auc
+
+# avg_mcc1
+# [1] 0.3936153
+# > avg_accuracy
+# [1] 0.8744993
+# > avg_senstivity
+# [1] 0.465302
+# > avg_specificity
+# [1] 0.9287108
+# > avg_precision
+# [1] 0.4641465
+# > avg_auc
+# [1] 0.8521787
+
+####################### MODEL: discretized all variables ##################################
+
+#analyse pattern using data, discretize variables using data1
+
+#discretize age
+summary(data$age)
+#strange outlier of previous = 275. this means the bank called them 275 times previously! quite implausible
+#check top 10 highest values in previous
+ggplot(data = data, aes(x = age)) +geom_histogram() + xlim(0,100)
+CrossTable(data$age, data$y)
+#seems like cdf curve starts flattening after 70, proportion of age seem to stabilize
+plot(ecdf(data[,"age"]),
+     xlim=c(0,100),
+     col="blue")
+#yes, proportion of age seem to stabilize after 70
+plot(ecdf(data[,"age"]),
+     xlim=c(15,70),
+     col="blue")
+filter(data, age > 55 & age <=65)
+filter(data, age > 65 & age <=75) #490 customers
+filter(data, age > 75) #611 customers
+
+categories_age <- cut(data1$age, breaks = c(15,30, 45, 60, 75, 100),
+                      labels = c("16_30y", "31_45y", "46y_60", "60_75y", "75y_plus"),
+                      right = TRUE)
+data1$age_disc <- data.frame(data1$age, categories_age)$categories_age
+CrossTable(data1$age_disc, data1$y)
+str(data1)
+
+#discretize balance
+summary(data$balance)
+#take a closer look at where most of the values of the records lie to gauge how to bin
+ggplot(data = data, aes(x = balance)) +geom_histogram() + xlim(-3000,8000)
+#mostly 0 and then having a long right tail 
+filter(data, balance < 0) 
+filter(data, balance == 0)
+filter(data, balance > 0) 
+categories_balance <- cut(data1$balance, breaks = c(-9000,-1,0, 102128),
+                          labels = c("negative", "zero", "positive"),
+                          right = TRUE)
+data1$balance_disc <- data.frame(data1$balance, categories_balance)$categories_balance
+CrossTable(data1$balance_disc, data1$y)
+str(data1)
+
+#discretize duration
+summary(data$duration)
+ggplot(data = data, aes(x = duration)) +geom_histogram() + xlim(-1,500)
+#overly short conversation
+filter(data, duration <= 100)
+filter(data, duration > 100 & duration <= 200)
+filter(data, duration > 200 & duration <= 300)
+filter(data, duration > 300 & duration <= 400)
+filter(data, duration > 400 & duration <= 500)
+filter(data, duration > 500 & duration <= 600)
+filter(data, duration > 600)
+categories_duration <- cut(data1$duration, breaks = c(-1,100,200,300,400,500,600,5000),
+                           labels = c("100s", "101_200s", "201_300s","301_400s","401_500s","501_600s","601s_plus"),
+                           right = TRUE)
+data1$duration_disc <- data.frame(data1$duration, categories_duration)$categories_duration
+CrossTable(data1$duration_disc, data1$y)
+str(data1)
+
+#discretize day
+data1$day <- as.factor(data1$day)
+str(data1)
+
+#discretize campaign
+summary(data$campaign)
+ggplot(data = data, aes(x = campaign)) +geom_histogram() + xlim(0,20)
+filter(data, campaign == 1)
+filter(data, campaign == 2)
+filter(data,campaign == 3)
+filter(data,campaign > 3)
+categories_campaign <- cut(data1$campaign, breaks = c(0,1,2,3,65),
+                           labels = c("1call", "2call", "3call","4call_plus"),
+                           right = TRUE)
+data1$campaign_disc <- data.frame(data1$campaign, categories_campaign)$categories_campaign
+CrossTable(data1$campaign_disc, data$y)
+str(data1)
+
+#discretizing pdays into 5 categories in new variable pdays_disc
+categories_pdays <- cut(data1$pdays, breaks = c(-2, -1, 90, 180, 270, 871),
+                        labels = c("nc", "1_90d", "91_180d", "181_270d", "271d_plus"),
+                        right = TRUE)
+data1$pdays_disc <- data.frame(data1$pdays, categories_pdays)$categories_pdays
+str(data1)
+CrossTable(data1$pdays_disc, data1$y)
+
+
+#discretizing previous into categories: 1,2,3,4,5,6,7 >7 in new variable previous_disc
+categories_previous <- cut(data1$previous, breaks = c(-1,0, 1, 2, 3, 4, 5, 6, 7, 275),
+                           labels = c("nc", "1c", "2c", "3c", "4c", "5c", "6c", "7c", "8c_plus"),
+                           right = TRUE)
+data1$previous_disc <- data.frame(data1$previous, categories_previous)$categories_previous
+CrossTable(data1$previous_disc, data1$y)
+str(data1)
+
+# Prepare for 5-fold cross-validation
+data1 <- subset(data1, select = c(job,marital,education,housing,loan,contact,day,month,default,poutcome,y,pdays_disc,previous_disc,age_disc,balance_disc,duration_disc,campaign_disc))
+str(data1)
+
+matthews_correlation_coefficient <- function(cm) {
+  tp <- as.numeric(cm[2, 2])
+  tn <- as.numeric(cm[1, 1])
+  fp <- as.numeric(cm[2, 1])
+  fn <- as.numeric(cm[1, 2])
+  mcc <- (tp * tn - fp * fn) / sqrt((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn))
+  return(mcc)
+}
+
+nb_results2 <- list()
+
+set.seed(123)
+folds <- createFolds(data1$y, k=5)
+
+library("ROSE")
+
+for(i in 1:5) {
+  # Split into training and validation set
+  train_data1 <- data1[-folds[[i]],]
+  test_data1 <- data1[folds[[i]],]
+  
+  # Check for class imbalance and use ROSE for oversampling if necessary
+  
+  train_data1 <- subset(train_data1,select = -c(default,poutcome))
+  # test_data1 <- subset(test_data1,select = -c(default,poutcome))
+  str(train_data1)
+  set.seed(123)
+  train_data1 <- ovun.sample(y ~ .,data = train_data1, method = "over", N = 2*sum(train_data1$y == "no"))$data
+  str(train_data1)
+  
+  
+  #train model
+  nb_model2 <- naiveBayes(y~ ., data = train_data1,laplace=1) 
+  
+  #predict on test data and evaluate, then store 
+  nb_prediction2 <- predict(nb_model2, newdata = test_data1)
+  
+  cm <- confusionMatrix(nb_prediction2, mode = "everything", reference = test_data1$y, positive = "yes")
+  cm
+  #create MCC function and find MCC value, store in m. 
+  m <- matthews_correlation_coefficient(cm$table)
+  m
+  pred2_prob <- predict(nb_model2, newdata = test_data1,type = "raw")
+  test_data1$y <- ifelse(test_data1$y == "yes", 1, 0)
+  roc_auc <- Metrics::auc(test_data1$y,pred2_prob[,2])
+  metrics_cal = rbind(
+    c(cm$overall["Accuracy"], 
+      cm$byClass["Sensitivity"],
+      cm$byClass["Specificity"],
+      cm$byClass["Precision"],
+      roc_auc))
+  colnames(metrics_cal) = c("Accuracy", "Sensitivity", "Specificity","Precision","AUC")
+  metrics_cal
+  
+  #store confusion matrix and MCC
+  nb_results2[[i]] <- list(confusion = cm$table,MCC = m,Metric = metrics_cal)
+}
+
+nb_results2
+
+avg_mcc2 <- mean(sapply(nb_results2, function(res) res$MCC))
+avg_mcc2
+
+avg_accuracy2 <- mean(sapply(nb_results2, function(res) res$Metric[,1]))
+avg_senstivity2 <- mean(sapply(nb_results2, function(res) res$Metric[,2]))
+avg_specificity2 <- mean(sapply(nb_results2, function(res) res$Metric[,3]))
+avg_precision2 <- mean(sapply(nb_results2, function(res) res$Metric[,4]))
+avg_auc2 <- mean(sapply(nb_results2, function(res) res$Metric[,5]))
+avg_mcc2
+avg_accuracy2
+avg_senstivity2
+avg_specificity2
+avg_precision2
+avg_auc2
+
+
+# avg_mcc2
+# [1] 0.4221034
+# > avg_accuracy2
+# [1] 0.7920859
+# > avg_senstivity2
+# [1] 0.7963699
+# > avg_specificity2
+# [1] 0.7915183
+# > avg_precision2
+# [1] 0.3360316
+# > avg_auc2
+# [1] 0.8729072
+
+####################MODEL 3: TUNING USING LAPLACE + removing correlated features ################################
+
+#tuning laplace value based on MCC
+
+nb_results3 <- list()
+nb_results3tune <- list()
+
+set.seed(123)
+folds <- createFolds(data1$y, k=5)
+
+library("ROSE")
+
+for (k in 1:5){
+  
+  for(i in 1:5) {
+    # Split into training and validation set
+    train_data1 <- data1[-folds[[i]],]
+    test_data1 <- data1[folds[[i]],]
+    
+    # Check for class imbalance and use ROSE for oversampling if necessary
+    
+    train_data1 <- subset(train_data1,select = -c(default,poutcome))
+    str(train_data1)
+    set.seed(123)
+    train_data1 <- ovun.sample(y ~ .,data = train_data1, method = "over", N = 2*sum(train_data1$y == "no"))$data
+    str(train_data1)
+    
+    laplace <- list(1,2,3,4,5)
+    
+    #train model
+    nb_model3 <- naiveBayes(y~ ., data = train_data1, laplace = laplace[[k]]) 
+    
+    #predict on test data and evaluate, then store 
+    nb_prediction3 <- predict(nb_model3, newdata = test_data1)
+    
+    cm <- confusionMatrix(nb_prediction3, mode = "everything", reference = test_data1$y, positive = "yes")
+    cm
+    #create MCC function and find MCC value, store in m. 
+    m <- matthews_correlation_coefficient(cm$table)
+    m
+    pred3_prob <- predict(nb_model3, newdata = test_data1,type = "raw")
+    test_data1$y <- ifelse(test_data1$y == "yes", 1, 0)
+    roc_auc <- Metrics::auc(test_data1$y,pred3_prob[,2])
+    metrics_cal = rbind(
+      c(cm$overall["Accuracy"], 
+        cm$byClass["Sensitivity"],
+        cm$byClass["Specificity"],
+        cm$byClass["Precision"],
+        roc_auc))
+    colnames(metrics_cal) = c("Accuracy", "Sensitivity", "Specificity","Precision","AUC")
+    metrics_cal
+    
+    #store confusion matrix and MCC
+    nb_results3[[i]] <- list(confusion = cm$table,MCC = m,Metric = metrics_cal)
+  }
+  
+  avg_mcc3 <- mean(sapply(nb_results3, function(res) res$MCC))
+  avg_mcc3
+  nb_results3tune[[k]] <- avg_mcc3
+}
+nb_results3
+nb_results3tune
+
+#avg_mcc before tuning: 0.4221034
+#avg_mcc after tuning:
+# [[1]]
+# [1] 0.4221315
+# 
+# [[2]]
+# [1] 0.4220625
+# 
+# [[3]]
+# [1] 0.4221474
+# 
+# [[4]]
+# [1] 0.4219814
+# 
+# [[5]]
+# [1] 0.42201
+
+#optimal laplace value = 3
+
+################# REMOVING CORRELATED FEATURES ########################################
+
+summary(data$contact)
+
+
+#use laplace = 3, then tune by removing feature previous_disc that has strong association with pdays_disc
+
+#ascertain that cramersV is moderately large for previous_disc and pdays_disc
+library('vcd')
+assocstats(xtabs(~data1$previous_disc + data1$pdays_disc))
+library(rcompanion)
+cramerV(data1$previous_disc, data1$pdays_disc, bias.correct = TRUE) #cramersV is 0.5031
+
+matthews_correlation_coefficient <- function(cm) {
+  tp <- as.numeric(cm[2, 2])
+  tn <- as.numeric(cm[1, 1])
+  fp <- as.numeric(cm[2, 1])
+  fn <- as.numeric(cm[1, 2])
+  mcc <- (tp * tn - fp * fn) / sqrt((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn))
+  return(mcc)
+}
+
+nb_results3 <- list()
+
+str(data1)
+set.seed(123)
+folds <- createFolds(data1$y, k=5)
+
+library("ROSE")
+
+for(i in 1:5) {
+  # Split into training and validation set
+  train_data1 <- data1[-folds[[i]],]
+  test_data1 <- data1[folds[[i]],]
+  
+  
+  
+  train_data1 <- subset(train_data1,select = -c(default,poutcome,previous_disc))
+  str(train_data1)
+  #oversample training data
+  set.seed(123)
+  train_data1 <- ovun.sample(y ~ .,data = train_data1, method = "over", N = 2*sum(train_data1$y == "no"))$data
+  str(train_data1)
+  
+  
+  #train model
+  nb_model3 <- naiveBayes(y~ ., data = train_data1, laplace=3) 
+  
+  #predict on test data and evaluate, then store 
+  nb_prediction3 <- predict(nb_model3, newdata = test_data1)
+  
+  cm <- confusionMatrix(nb_prediction3, mode = "everything", reference = test_data1$y, positive = "yes")
+  cm
+  #create MCC function and find MCC value, store in m. 
+  m <- matthews_correlation_coefficient(cm$table)
+  m
+  pred3_prob <- predict(nb_model3, newdata = test_data1,type = "raw")
+  test_data1$y <- ifelse(test_data1$y == "yes", 1, 0)
+  roc_auc <- Metrics::auc(test_data1$y,pred3_prob[,2])
+  metrics_cal = rbind(
+    c(cm$overall["Accuracy"], 
+      cm$byClass["Sensitivity"],
+      cm$byClass["Specificity"],
+      cm$byClass["Precision"],
+      roc_auc))
+  colnames(metrics_cal) = c("Accuracy", "Sensitivity", "Specificity","Precision","AUC")
+  metrics_cal
+  
+  #store confusion matrix and MCC
+  nb_results3[[i]] <- list(confusion = cm$table,MCC = m,Metric = metrics_cal)
+}
+
+nb_results3
+avg_mcc3 <- mean(sapply(results3, function(res) res$MCC))
+avg_accuracy3 <- mean(sapply(nb_results3, function(res) res$Metric[,1]))
+avg_senstivity3 <- mean(sapply(nb_results3, function(res) res$Metric[,2]))
+avg_specificity3 <- mean(sapply(nb_results3, function(res) res$Metric[,3]))
+avg_precision3 <- mean(sapply(nb_results3, function(res) res$Metric[,4]))
+avg_auc3 <- mean(sapply(nb_results3, function(res) res$Metric[,5]))
+avg_mcc3
+avg_accuracy3
+avg_senstivity3
+avg_specificity3
+avg_precision3
+avg_auc3 
+
+#remove previous_disc
+# avg_mcc3
+# [1] 0.4349558
+# > avg_accuracy3
+# [1] 0.7946294
+# > avg_senstivity3
+# [1] 0.8150878
+# > avg_specificity3
+# [1] 0.7919191
+# > avg_precision3
+# [1] 0.3416799
+# > avg_auc3 
+# [1] 0.8796205
+
+#avg_mcc: 0.4349558 if remove previous_disc and laplace = 3
+
+#try removing pdays_disc instead of previous_disc to see which MCC is higher
+nb_results3 <- list()
+
+str(data1)
+set.seed(123)
+folds <- createFolds(data1$y, k=5)
+
+library("ROSE")
+
+for(i in 1:5) {
+  # Split into training and validation set
+  train_data1 <- data1[-folds[[i]],]
+  test_data1 <- data1[folds[[i]],]
+  
+  
+  #
+  train_data1 <- subset(train_data1,select = -c(default,poutcome,pdays_disc))
+  str(train_data1)
+  #oversample training data
+  set.seed(123)
+  train_data1 <- ovun.sample(y ~ .,data = train_data1, method = "over", N = 2*sum(train_data1$y == "no"))$data
+  str(train_data1)
+  
+  
+  #train model
+  nb_model3 <- naiveBayes(y~ ., data = train_data1, laplace=3) 
+  
+  #predict on test data and evaluate, then store 
+  nb_prediction3 <- predict(nb_model3, newdata = test_data1)
+  
+  cm <- confusionMatrix(nb_prediction3, mode = "everything", reference = test_data1$y, positive = "yes")
+  cm
+  #create MCC function and find MCC value, store in m. 
+  m <- matthews_correlation_coefficient(cm$table)
+  m
+  pred3_prob <- predict(nb_model3, newdata = test_data1,type = "raw")
+  test_data1$y <- ifelse(test_data1$y == "yes", 1, 0)
+  roc_auc <- Metrics::auc(test_data1$y,pred3_prob[,2])
+  metrics_cal = rbind(
+    c(cm$overall["Accuracy"], 
+      cm$byClass["Sensitivity"],
+      cm$byClass["Specificity"],
+      cm$byClass["Precision"],
+      roc_auc))
+  colnames(metrics_cal) = c("Accuracy", "Sensitivity", "Specificity","Precision","AUC")
+  metrics_cal
+  
+  #store confusion matrix and MCC
+  nb_results3[[i]] <- list(confusion = cm$table,MCC = m,Metric = metrics_cal)
+}
+
+nb_results3
+avg_mcc3 <- mean(sapply(results3, function(res) res$MCC))
+avg_accuracy3 <- mean(sapply(nb_results3, function(res) res$Metric[,1]))
+avg_senstivity3 <- mean(sapply(nb_results3, function(res) res$Metric[,2]))
+avg_specificity3 <- mean(sapply(nb_results3, function(res) res$Metric[,3]))
+avg_precision3 <- mean(sapply(nb_results3, function(res) res$Metric[,4]))
+avg_auc3 <- mean(sapply(nb_results3, function(res) res$Metric[,5]))
+avg_mcc3
+avg_accuracy3
+avg_senstivity3
+avg_specificity3
+avg_precision3
+avg_auc3 
+
+#removing previous_disc gives better performance across most metrics compared to removing pdays, stick to removing previous_disc
+
+###################################### Business Model 2 ############################################
+
+############### MODEL: all variables discretised 
+
+# Prepare for 5-fold cross-validation
+data1 <- subset(data1, select = c(job,marital,education,housing,loan,contact,day,month,default,poutcome,y,pdays_disc,previous_disc,age_disc,balance_disc,duration_disc,campaign_disc))
+str(data1)
+
+matthews_correlation_coefficient <- function(cm) {
+  tp <- as.numeric(cm[2, 2])
+  tn <- as.numeric(cm[1, 1])
+  fp <- as.numeric(cm[2, 1])
+  fn <- as.numeric(cm[1, 2])
+  mcc <- (tp * tn - fp * fn) / sqrt((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn))
+  return(mcc)
+}
+
+nb_bm_results <- list()
+
+set.seed(123)
+folds <- createFolds(data1$y, k=5)
+
+library("ROSE")
+
+for(i in 1:5) {
+  # Split into training and validation set
+  train_data1 <- data1[-folds[[i]],]
+  test_data1 <- data1[folds[[i]],]
+  
+  # Check for class imbalance and use ROSE for oversampling if necessary
+  
+  train_data1 <- subset(train_data1,select = -c(default,poutcome,duration_disc,campaign_disc))
+  # test_data1 <- subset(test_data1,select = -c(default,poutcome))
+  str(train_data1)
+  set.seed(123)
+  train_data1 <- ovun.sample(y ~ .,data = train_data1, method = "over", N = 2*sum(train_data1$y == "no"))$data
+  str(train_data1)
+  
+  
+  #train model
+  nb_model2 <- naiveBayes(y~ ., data = train_data1) 
+  
+  #predict on test data and evaluate, then store 
+  nb_prediction2 <- predict(nb_model2, newdata = test_data1)
+  
+  cm <- confusionMatrix(nb_prediction2, mode = "everything", reference = test_data1$y, positive = "yes")
+  cm
+  #create MCC function and find MCC value, store in m. 
+  m <- matthews_correlation_coefficient(cm$table)
+  m
+  pred2_prob <- predict(nb_model2, newdata = test_data1,type = "raw")
+  test_data1$y <- ifelse(test_data1$y == "yes", 1, 0)
+  roc_auc <- Metrics::auc(test_data1$y,pred2_prob[,2])
+  metrics_cal = rbind(
+    c(cm$overall["Accuracy"], 
+      cm$byClass["Sensitivity"],
+      cm$byClass["Specificity"],
+      cm$byClass["Precision"],
+      roc_auc))
+  colnames(metrics_cal) = c("Accuracy", "Sensitivity", "Specificity","Precision","AUC")
+  metrics_cal
+  
+  #store confusion matrix and MCC
+  nb_results2[[i]] <- list(confusion = cm$table,MCC = m,Metric = metrics_cal)
+}
+
+nb_results2
+
+avg_mcc2 <- mean(sapply(nb_results2, function(res) res$MCC))
+avg_mcc2
+
+avg_accuracy2 <- mean(sapply(nb_results2, function(res) res$Metric[,1]))
+avg_senstivity2 <- mean(sapply(nb_results2, function(res) res$Metric[,2]))
+avg_specificity2 <- mean(sapply(nb_results2, function(res) res$Metric[,3]))
+avg_precision2 <- mean(sapply(nb_results2, function(res) res$Metric[,4]))
+avg_auc2 <- mean(sapply(nb_results2, function(res) res$Metric[,5]))
+avg_mcc2
+avg_accuracy2
+avg_senstivity2
+avg_specificity2
+avg_precision2
+avg_auc2
+
+# avg_mcc2
+# [1] 0.2616939
+# > avg_accuracy2
+# [1] 0.7175245
+# > avg_senstivity2
+# [1] 0.6532427
+# > avg_specificity2
+# [1] 0.7260409
+# > avg_precision2
+# [1] 0.2400552
+# > avg_auc2
+# [1] 0.7497377
+
+###########################################   IMPROVING MODEL PERFORMANCE
+
+#tuning laplace value based on MCC
+
+nb_results3 <- list()
+nb_results3tune <- list()
+
+set.seed(123)
+folds <- createFolds(data1$y, k=5)
+
+library("ROSE")
+
+for (k in 1:5){
+  
+  for(i in 1:5) {
+    # Split into training and validation set
+    train_data1 <- data1[-folds[[i]],]
+    test_data1 <- data1[folds[[i]],]
+    
+    # Check for class imbalance and use ROSE for oversampling if necessary
+    
+    train_data1 <- subset(train_data1,select = -c(default,poutcome,duration_disc,campaign_disc))
+    str(train_data1)
+    set.seed(123)
+    train_data1 <- ovun.sample(y ~ .,data = train_data1, method = "over", N = 2*sum(train_data1$y == "no"))$data
+    str(train_data1)
+    
+    laplace <- list(1,2,3,4,5)
+    
+    #train model
+    nb_model3 <- naiveBayes(y~ ., data = train_data1, laplace = laplace[[k]]) 
+    
+    #predict on test data and evaluate, then store 
+    nb_prediction3 <- predict(nb_model3, newdata = test_data1)
+    
+    cm <- confusionMatrix(nb_prediction3, mode = "everything", reference = test_data1$y, positive = "yes")
+    cm
+    #create MCC function and find MCC value, store in m. 
+    m <- matthews_correlation_coefficient(cm$table)
+    m
+    pred3_prob <- predict(nb_model3, newdata = test_data1,type = "raw")
+    test_data1$y <- ifelse(test_data1$y == "yes", 1, 0)
+    roc_auc <- Metrics::auc(test_data1$y,pred3_prob[,2])
+    metrics_cal = rbind(
+      c(cm$overall["Accuracy"], 
+        cm$byClass["Sensitivity"],
+        cm$byClass["Specificity"],
+        cm$byClass["Precision"],
+        roc_auc))
+    colnames(metrics_cal) = c("Accuracy", "Sensitivity", "Specificity","Precision","AUC")
+    metrics_cal
+    
+    #store confusion matrix and MCC
+    nb_results3[[i]] <- list(confusion = cm$table,MCC = m,Metric = metrics_cal)
+  }
+  avg_mcc3 <- mean(sapply(nb_results3, function(res) res$MCC))
+  avg_mcc3
+  nb_results3tune[[k]] <- avg_mcc3
+}
+nb_results3
+nb_results3tune
+
+#avg_mcc before tuning: 0.4221034
+#avg_mcc after tuning:
+# [[1]]
+# [1] 0.2617164
+# 
+# [[2]]
+# [1] 0.2618271
+# 
+# [[3]]
+# [1] 0.2619164
+# 
+# [[4]]
+# [1] 0.2619834
+# 
+# [[5]]
+# [1] 0.2619899
+
+#optimal laplace value = 5
+
+str(data1)
+
+################# REMOVING CORRELATED FEATURES ########################################
+
+
+#use laplace =  and remove feature previous_disc as per business model 1
+
+matthews_correlation_coefficient <- function(cm) {
+  tp <- as.numeric(cm[2, 2])
+  tn <- as.numeric(cm[1, 1])
+  fp <- as.numeric(cm[2, 1])
+  fn <- as.numeric(cm[1, 2])
+  mcc <- (tp * tn - fp * fn) / sqrt((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn))
+  return(mcc)
+}
+
+nb_results3 <- list()
+
+str(data1)
+set.seed(123)
+folds <- createFolds(data1$y, k=5)
+
+library("ROSE")
+
+for(i in 1:5) {
+  # Split into training and validation set
+  train_data1 <- data1[-folds[[i]],]
+  test_data1 <- data1[folds[[i]],]
+  
+  
+  #
+  train_data1 <- subset(train_data1,select = -c(default,poutcome,duration_disc,campaign_disc,previous_disc))
+  str(train_data1)
+  #oversample training data
+  set.seed(123)
+  train_data1 <- ovun.sample(y ~ .,data = train_data1, method = "over", N = 2*sum(train_data1$y == "no"))$data
+  str(train_data1)
+  
+  
+  #train model
+  nb_model3 <- naiveBayes(y~ ., data = train_data1) 
+  
+  #predict on test data and evaluate, then store 
+  nb_prediction3 <- predict(nb_model3, newdata = test_data1)
+  
+  cm <- confusionMatrix(nb_prediction3, mode = "everything", reference = test_data1$y, positive = "yes")
+  cm
+  #create MCC function and find MCC value, store in m. 
+  m <- matthews_correlation_coefficient(cm$table)
+  m
+  pred3_prob <- predict(nb_model3, newdata = test_data1,type = "raw")
+  test_data1$y <- ifelse(test_data1$y == "yes", 1, 0)
+  roc_auc <- Metrics::auc(test_data1$y,pred3_prob[,2])
+  metrics_cal = rbind(
+    c(cm$overall["Accuracy"], 
+      cm$byClass["Sensitivity"],
+      cm$byClass["Specificity"],
+      cm$byClass["Precision"],
+      roc_auc))
+  colnames(metrics_cal) = c("Accuracy", "Sensitivity", "Specificity","Precision","AUC")
+  metrics_cal
+  
+  #store confusion matrix and MCC
+  nb_results3[[i]] <- list(confusion = cm$table,MCC = m,Metric = metrics_cal)
+}
+
+nb_results3
+avg_mcc3 <- mean(sapply(nb_results3, function(res) res$MCC))
+avg_accuracy3 <- mean(sapply(nb_results3, function(res) res$Metric[,1]))
+avg_senstivity3 <- mean(sapply(nb_results3, function(res) res$Metric[,2]))
+avg_specificity3 <- mean(sapply(nb_results3, function(res) res$Metric[,3]))
+avg_precision3 <- mean(sapply(nb_results3, function(res) res$Metric[,4]))
+avg_auc3 <- mean(sapply(nb_results3, function(res) res$Metric[,5]))
+avg_mcc3
+avg_accuracy3
+avg_senstivity3
+avg_specificity3
+avg_precision3
+avg_auc3 
+
+# avg_mcc3
+# [1] 0.2605938
+# > avg_accuracy3
+# [1] 0.7082347
+# > avg_senstivity3
+# [1] 0.66799
+# > avg_specificity3
+# [1] 0.7135665
+# > avg_precision3
+# [1] 0.236034
+# > avg_auc3 
+# [1] 0.7516892
+
+#removing correlated feature worsens performance. 
+
+################# BM2 AFTER IMPROVEMENT: ONLY TUNING LAPLACE = 5 ##################
+
+nb_results3 <- list()
+
+str(data1)
+set.seed(123)
+folds <- createFolds(data1$y, k=5)
+
+library("ROSE")
+
+for(i in 1:5) {
+  # Split into training and validation set
+  train_data1 <- data1[-folds[[i]],]
+  test_data1 <- data1[folds[[i]],]
+  
+  
+  #
+  train_data1 <- subset(train_data1,select = -c(default,poutcome,duration_disc,campaign_disc))
+  str(train_data1)
+  #oversample training data
+  set.seed(123)
+  train_data1 <- ovun.sample(y ~ .,data = train_data1, method = "over", N = 2*sum(train_data1$y == "no"))$data
+  str(train_data1)
+  
+  
+  #train model
+  nb_model3 <- naiveBayes(y~ ., data = train_data1, laplace=5) 
+  
+  #predict on test data and evaluate, then store 
+  nb_prediction3 <- predict(nb_model3, newdata = test_data1)
+  
+  cm <- confusionMatrix(nb_prediction3, mode = "everything", reference = test_data1$y, positive = "yes")
+  cm
+  #create MCC function and find MCC value, store in m. 
+  m <- matthews_correlation_coefficient(cm$table)
+  m
+  pred3_prob <- predict(nb_model3, newdata = test_data1,type = "raw")
+  test_data1$y <- ifelse(test_data1$y == "yes", 1, 0)
+  roc_auc <- Metrics::auc(test_data1$y,pred3_prob[,2])
+  metrics_cal = rbind(
+    c(cm$overall["Accuracy"], 
+      cm$byClass["Sensitivity"],
+      cm$byClass["Specificity"],
+      cm$byClass["Precision"],
+      roc_auc))
+  colnames(metrics_cal) = c("Accuracy", "Sensitivity", "Specificity","Precision","AUC")
+  metrics_cal
+  
+  #store confusion matrix and MCC
+  nb_results3[[i]] <- list(confusion = cm$table,MCC = m,Metric = metrics_cal)
+}
+
+nb_results3
+avg_mcc3 <- mean(sapply(nb_results3, function(res) res$MCC))
+avg_accuracy3 <- mean(sapply(nb_results3, function(res) res$Metric[,1]))
+avg_senstivity3 <- mean(sapply(nb_results3, function(res) res$Metric[,2]))
+avg_specificity3 <- mean(sapply(nb_results3, function(res) res$Metric[,3]))
+avg_precision3 <- mean(sapply(nb_results3, function(res) res$Metric[,4]))
+avg_auc3 <- mean(sapply(nb_results3, function(res) res$Metric[,5]))
+avg_mcc3
+avg_accuracy3
+avg_senstivity3
+avg_specificity3
+avg_precision3
+avg_auc3 
+
+# > avg_mcc3
+# [1] 0.2619899
+# > avg_accuracy3
+# [1] 0.7179226
+# > avg_senstivity3
+# [1] 0.6530536
+# > avg_specificity3
+# [1] 0.7265168
+# > avg_precision3
+# [1] 0.2403219
+# > avg_auc3 
+# [1] 0.7496944
+

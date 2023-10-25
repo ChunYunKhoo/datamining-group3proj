@@ -71,8 +71,8 @@ apply(data, 2, MissingPercentage)
 
 #check for duplicate records
 sum(duplicated(data))
-
 str(data)
+#no duplicate records
 
 summary(data)
 #check distribution of target variable
@@ -138,7 +138,7 @@ grid.arrange(
 
 #histogram
 grid.arrange(
-ggplot(data = data, aes(x=balance, fill=y)) + geom_histogram(position = "identity") + xlim(-3000,8000),
+ggplot(data = data, aes(x=balance, fill=y)) + geom_histogram(position = "identity", apha = 0.8) + xlim(-3000,8000),
 nrow = 1,
 top="balance and y"
 )
@@ -194,6 +194,9 @@ grid.arrange(
 #campaigns, duration, y
 ggplot(data = data, aes(campaign, duration, colour = y)) + geom_point()
 #number of people subscribing is higher when number of contacts performed are low and duration of call is longer (>5 min)
+
+#month, previous,y
+ggplot(data = data, aes(x=month, y=previous, fill = y)) + geom_boxplot(alpha = 0.5) + scale_y_continuous(name="previous", limits=c(0,10))
 
 
 ################pdays and y
@@ -321,7 +324,7 @@ grid.arrange(
 ##singles have highest proportion of subscribing.
 #mar, dec, oct, sep have higher proportion of yes than nos. for dec
 
-##pull out unknowns to show that only unknowns for poutcome is overwhelming and will be removed 
+#####pull out unknowns to show that only unknowns for poutcome is significantly large and will be removed 
 grid.arrange(
   
   ggplot(data=data, mapping=aes(x=job, fill=y)) +
@@ -350,16 +353,49 @@ grid.arrange(
   top="Categorical variables with 'unknown'")
 
 
+#month,y
+
+grid.arrange(
+
+ggplot(data=data, mapping=aes(x=month, fill=y)) +
+  geom_bar(position = "fill") +
+  scale_y_continuous(name="proportion")+
+  theme(axis.text.x = element_text(angle = 90, hjust = 0.5, size=9)),
+
+ggplot(data=data, mapping=aes(x=month, fill=y)) +
+  geom_bar(position = "identity") +
+  scale_y_continuous(name="Count")+
+  theme(axis.text.x = element_text(angle = 90, hjust = 0.5, size=9)),
+
+nrow = 2,
+
+top = "'month' and y"
+)
+
+#job and balance, y
+ggplot(data = data, aes(job,balance, colour = y)) + geom_point() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 0, size=7))
+
+#education and balance, y
+ggplot(data = data, aes(education,balance, colour = y)) + geom_point() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 0, size=7))
+
+#contact,duration, y
+ggplot(data = data, aes(contact,duration, colour = y)) + geom_point() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 0, size=7))
+
 #####nature of call vs y
 
 #campaigns, duration, y
 ggplot(data = data, aes(campaign, duration, colour = y)) + geom_point()
 #number of people subscribing is higher when number of contacts performed are low and duration of call is longer (>5 min)
 
-
 #previous, poutcome and y
 ggplot(data = data, aes(previous, poutcome, colour = y)) + geom_point()
 #clients who were previously contacted with failure also tend to not subscribe to term deposit.
+
+head(data$balance)
+
 
 p_y <- data %>%group_by(y) %>% summarise(mean(pdays)) 
 p_y
@@ -380,13 +416,13 @@ filter(data, pdays == -1) #36954 customers
 
 #discretizing pdays
 #zoom into range where most positive values lie in order to gauge how to bin
-ggplot(data = data, aes(x = pdays)) +geom_histogram(binwidth = 5) + xlim(0,500) 
+ggplot(data = data, aes(x = pdays)) +geom_histogram(binwidth = 5) + xlim(0,500)
 filter(data, pdays == -1) #36954 customers
 filter(data, pdays > -1 & pdays <= 90) #718 customers were contacted previously within 3 months back
 filter(data, pdays > 90 & pdays <= 180) #2480 customers were contacted 3-6 months ago
 filter(data, pdays > 180 & pdays <= 270) #2082 customers in 6-9 months ago
 filter(data, pdays > 270) #2977 customers called more than 9 months ago
-#discretizing previous into 5 categories in new variable pdays_disc
+#discretizing pdays into 5 categories in new variable pdays_disc
 categories_pdays <- cut(data1$pdays, breaks = c(-2, -1, 90, 180, 270, 871),
                         labels = c("nc", "1_90d", "91_180d", "181_270d", "271d_plus"),
                         right = TRUE)
@@ -447,8 +483,9 @@ set.seed(123)
 library(Boruta)
 boruta <- Boruta(y ~ ., data = train, doTrace = 2, maxRuns = 20)
 print(boruta)
-plot(boruta, las = 2, cex.axis = 0.8)
+plot(boruta, las = 2, cex.axis = 0.8, xlab = " ")
 attStats(boruta)
+getSelectedAttributes(boruta.bank, withTentative = F)
 Makedecision <- TentativeRoughFix(boruta)  # help us to make quick decision
 print(Makedecision)
 #all confirmed except 'default'
@@ -468,6 +505,7 @@ print(results)
 predictors(results)
 #before discretisation: #all except 'default'
 #after discretisation: all
+rfRFE$rank
 
 # plot the results
 ggplot(data = results , metric = "Accuracy") 
@@ -477,14 +515,15 @@ predictions <- predict(results, test[, results$optVariables])
 identical(levels(predictions),levels(test$y))
 levels <- levels(predictions[, 1])
 levels <- levels[order(levels)]  
-confusionMatrix(table(ordered(predictions[,1],levels), ordered(test_data$y, levels)), mode = "everything", positive = 'yes')
+confusionMatrix(table(ordered(predictions[,1],levels), ordered(test$y, levels)), mode = "everything", positive = 'yes')
+#0.9077 accuracy and 0.4963 kappa value.
 
 
 #####################################  NAIVE BAYES CLASSFIER  #############################
 
-#business model 1
+####################### BUSINESS MODEL 1
 
-####################### MODEL 1 ##################################
+####################### MODEL 1: RAW #######################
 
 str(data)
 
@@ -511,6 +550,8 @@ for(i in 1:5) {
   
   # Check for class imbalance and use ROSE for oversampling if necessary
   
+  #remove poutcome since 81.7% of observations is unknown
+  #remove default as per Boruta feature selection results
   train_data <- subset(train_data,select = -c(default,poutcome))
   str(train_data)
   set.seed(123)
@@ -558,9 +599,6 @@ avg_senstivity
 avg_specificity
 avg_precision
 avg_auc
-#0.3936153
-#0.4178745 if only discretisize pdays and previous
-#0.417902 if only discretisize pdays and previous with laplace =1
 
 # avg_mcc1
 # [1] 0.3936153
@@ -575,10 +613,11 @@ avg_auc
 # > avg_auc
 # [1] 0.8521787
 
-####################### MODEL 2 ##################################
+####################### MODEL: discretized all variables ##################################
 
-#data for analysis, data1 to discretize
+#analyse pattern using data, discretize variables using data1
 
+#discretize age
 summary(data$age)
 #strange outlier of previous = 275. this means the bank called them 275 times previously! quite implausible
 #check top 10 highest values in previous
@@ -848,6 +887,8 @@ nb_results3tune
 
 ################# REMOVING CORRELATED FEATURES ########################################
 
+summary(data$contact)
+
 
 #use laplace = 3, then tune by removing feature previous_disc that has strong association with pdays_disc
 
@@ -880,7 +921,7 @@ for(i in 1:5) {
   test_data1 <- data1[folds[[i]],]
   
   
-  #
+  
   train_data1 <- subset(train_data1,select = -c(default,poutcome,previous_disc))
   str(train_data1)
   #oversample training data
@@ -943,6 +984,7 @@ avg_auc3
 # [1] 0.3416799
 # > avg_auc3 
 # [1] 0.8796205
+
 #avg_mcc: 0.4349558 if remove previous_disc and laplace = 3
 
 #try removing pdays_disc instead of previous_disc to see which MCC is higher
@@ -1010,9 +1052,11 @@ avg_specificity3
 avg_precision3
 avg_auc3 
 
-#MCC higher for previous_disc, remove previous_disc
+#removing previous_disc gives better performance across most metrics compared to removing pdays, stick to removing previous_disc
 
-############################# Business Model 2
+###################################### Business Model 2 ############################################
+
+############### MODEL: all variables discretised 
 
 # Prepare for 5-fold cross-validation
 data1 <- subset(data1, select = c(job,marital,education,housing,loan,contact,day,month,default,poutcome,y,pdays_disc,previous_disc,age_disc,balance_disc,duration_disc,campaign_disc))
@@ -1027,7 +1071,7 @@ matthews_correlation_coefficient <- function(cm) {
   return(mcc)
 }
 
-nb_results2 <- list()
+nb_bm_results <- list()
 
 set.seed(123)
 folds <- createFolds(data1$y, k=5)
@@ -1106,7 +1150,7 @@ avg_auc2
 # > avg_auc2
 # [1] 0.7497377
 
-####################MODEL 3: TUNING USING LAPLACE + removing correlated features ################################
+###########################################   IMPROVING MODEL PERFORMANCE
 
 #tuning laplace value based on MCC
 
@@ -1187,10 +1231,12 @@ nb_results3tune
 
 #optimal laplace value = 5
 
+str(data1)
+
 ################# REMOVING CORRELATED FEATURES ########################################
 
 
-#use laplace = 5, then tune by removing feature previous_disc as per business model 1
+#use laplace =  and remove feature previous_disc as per business model 1
 
 matthews_correlation_coefficient <- function(cm) {
   tp <- as.numeric(cm[2, 2])
@@ -1217,6 +1263,87 @@ for(i in 1:5) {
   
   #
   train_data1 <- subset(train_data1,select = -c(default,poutcome,duration_disc,campaign_disc,previous_disc))
+  str(train_data1)
+  #oversample training data
+  set.seed(123)
+  train_data1 <- ovun.sample(y ~ .,data = train_data1, method = "over", N = 2*sum(train_data1$y == "no"))$data
+  str(train_data1)
+  
+  
+  #train model
+  nb_model3 <- naiveBayes(y~ ., data = train_data1) 
+  
+  #predict on test data and evaluate, then store 
+  nb_prediction3 <- predict(nb_model3, newdata = test_data1)
+  
+  cm <- confusionMatrix(nb_prediction3, mode = "everything", reference = test_data1$y, positive = "yes")
+  cm
+  #create MCC function and find MCC value, store in m. 
+  m <- matthews_correlation_coefficient(cm$table)
+  m
+  pred3_prob <- predict(nb_model3, newdata = test_data1,type = "raw")
+  test_data1$y <- ifelse(test_data1$y == "yes", 1, 0)
+  roc_auc <- Metrics::auc(test_data1$y,pred3_prob[,2])
+  metrics_cal = rbind(
+    c(cm$overall["Accuracy"], 
+      cm$byClass["Sensitivity"],
+      cm$byClass["Specificity"],
+      cm$byClass["Precision"],
+      roc_auc))
+  colnames(metrics_cal) = c("Accuracy", "Sensitivity", "Specificity","Precision","AUC")
+  metrics_cal
+  
+  #store confusion matrix and MCC
+  nb_results3[[i]] <- list(confusion = cm$table,MCC = m,Metric = metrics_cal)
+}
+
+nb_results3
+avg_mcc3 <- mean(sapply(nb_results3, function(res) res$MCC))
+avg_accuracy3 <- mean(sapply(nb_results3, function(res) res$Metric[,1]))
+avg_senstivity3 <- mean(sapply(nb_results3, function(res) res$Metric[,2]))
+avg_specificity3 <- mean(sapply(nb_results3, function(res) res$Metric[,3]))
+avg_precision3 <- mean(sapply(nb_results3, function(res) res$Metric[,4]))
+avg_auc3 <- mean(sapply(nb_results3, function(res) res$Metric[,5]))
+avg_mcc3
+avg_accuracy3
+avg_senstivity3
+avg_specificity3
+avg_precision3
+avg_auc3 
+
+# avg_mcc3
+# [1] 0.2605938
+# > avg_accuracy3
+# [1] 0.7082347
+# > avg_senstivity3
+# [1] 0.66799
+# > avg_specificity3
+# [1] 0.7135665
+# > avg_precision3
+# [1] 0.236034
+# > avg_auc3 
+# [1] 0.7516892
+
+#removing correlated feature worsens performance. 
+
+################# BM2 AFTER IMPROVEMENT: ONLY TUNING LAPLACE = 5 ##################
+
+nb_results3 <- list()
+
+str(data1)
+set.seed(123)
+folds <- createFolds(data1$y, k=5)
+
+library("ROSE")
+
+for(i in 1:5) {
+  # Split into training and validation set
+  train_data1 <- data1[-folds[[i]],]
+  test_data1 <- data1[folds[[i]],]
+  
+  
+  #
+  train_data1 <- subset(train_data1,select = -c(default,poutcome,duration_disc,campaign_disc))
   str(train_data1)
   #oversample training data
   set.seed(123)
@@ -1264,3 +1391,16 @@ avg_senstivity3
 avg_specificity3
 avg_precision3
 avg_auc3 
+
+# > avg_mcc3
+# [1] 0.2619899
+# > avg_accuracy3
+# [1] 0.7179226
+# > avg_senstivity3
+# [1] 0.6530536
+# > avg_specificity3
+# [1] 0.7265168
+# > avg_precision3
+# [1] 0.2403219
+# > avg_auc3 
+# [1] 0.7496944
