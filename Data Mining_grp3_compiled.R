@@ -717,16 +717,16 @@ average_metrics1
 #0.3513213
 # Accuracy      Recall Specificity   Precision         AUC 
 # 0.8698546   0.4100953   0.9307650   0.4395941   0.7821059 
-##################################### Model Tune #########################################               
-rf_tune_m1 <- vector("list", length = 3)
+##################################### Model Tune ########################################             
+rf_tune_m1 <- vector("list", length = 4)
 rf_tune_m_mcc1 <- list()
-mtry_val <- list(4,6,8)
+mtry_val <- list(2,4,6,8)
 
 #Define your cross-validation folds
 set.seed(123)
 folds <- createFolds(data1$y,k=5)
 
-for (k in 1:3){
+for (k in 1:4){
   rf_tune_m1[[k]] <- vector("list", length = 5)
   
   for(i in 1:5) {
