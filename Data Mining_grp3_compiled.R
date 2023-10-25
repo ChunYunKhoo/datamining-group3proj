@@ -5,7 +5,7 @@ install.packages(c("corrplot", "class", "caret", "dplyr",
                    "ggforce", "ggplot2", "Boruta", "MLmetrics", 
                    "tictoc", "mlbench", "rcompanion", "mltools", 
                    "gridExtra", "ROSE", "pROC", "readr", 
-                   "tidymodels", "kernlab"))
+                   "tidymodels", "kernlab","vcd"))
 #Load libraries
 library(mltools)
 library(corrplot)
@@ -29,6 +29,7 @@ library(pROC)
 library(readr)
 library(tidymodels)
 library(kernlab)
+library(vcd)
 
 rm(list=ls())
 
@@ -396,7 +397,6 @@ num_y <- as.numeric(data$y)
 cor.test(data$pdays, num_y)
 #pdays has very weak correlation with target variable, can keep
 summary(data$pdays) #median is -1.0
-describe(data$pdays) #559 distinct values
 filter(data, pdays == -1) #36954 customers
 #the rest of the records ranges from 1-871, huge range. 
 #may need to discretize into bins for more meaningful interpretation
@@ -404,7 +404,7 @@ filter(data, pdays == -1) #36954 customers
 
 ########################DATA PREPROCESSING#########################################
 
-#discretizing pdays
+#exploring pdays
 #zoom into range where most positive values lie in order to gauge how to bin
 ggplot(data = data, aes(x = pdays)) +geom_histogram(binwidth = 5) + xlim(0,500)
 filter(data, pdays == -1) #36954 customers
@@ -412,6 +412,9 @@ filter(data, pdays > -1 & pdays <= 90) #718 customers were contacted previously 
 filter(data, pdays > 90 & pdays <= 180) #2480 customers were contacted 3-6 months ago
 filter(data, pdays > 180 & pdays <= 270) #2082 customers in 6-9 months ago
 filter(data, pdays > 270) #2977 customers called more than 9 months ago
+
+########################################################################
+
 #discretizing pdays into 5 categories in new variable pdays_disc
 categories_pdays <- cut(data1$pdays, breaks = c(-2, -1, 90, 180, 270, 871),
                         labels = c("nc", "1_90d", "91_180d", "181_270d", "271d_plus"),
@@ -420,6 +423,7 @@ data1$pdays_disc <- data.frame(data1$pdays, categories_pdays)$categories_pdays
 str(data1)
 CrossTable(data1$pdays_disc, data$y)
 
+##############################################################################
 
 #discretizing previous into categories: 1,2,3,4,5,6,7 >7 in new variable previous_disc
 categories_previous <- cut(data1$previous, breaks = c(-1,0, 1, 2, 3, 4, 5, 6, 7, 275),
@@ -429,7 +433,9 @@ data1$previous_disc <- data.frame(data1$previous, categories_previous)$categorie
 CrossTable(data1$previous_disc, data$y)
 str(data1)
 
-#contact
+############################################################################3
+
+#exploring contact
 ggplot(data = data, aes(x = contact)) +geom_bar()
 contact_corr <- chisq.test(data$contact, data$y, correct=FALSE)
 contact_corr
@@ -454,10 +460,6 @@ split <- sample(1:nrow(data),size = round(0.7 * nrow(data)))
 train <- data1[split, ]
 test <- data1[-split, ]
 
-#create upsampling training set
-train_up <- upSample(x = train_data %>% select(-y),
-                     y = as.factor(train_data$y),
-                     yname = "y")
 str(data)
 #check proportions
 print("Train Dataset")
@@ -467,6 +469,7 @@ prop.table(table(train$y))
 print("Test Dataset")
 prop.table(table(test$y))
 
+########################## FEATURE SELECTION #######################
 
 #feature selection using boruta algorithm
 set.seed(123)
@@ -475,7 +478,6 @@ boruta <- Boruta(y ~ ., data = train, doTrace = 2, maxRuns = 20)
 print(boruta)
 plot(boruta, las = 2, cex.axis = 0.8, xlab = " ")
 attStats(boruta)
-getSelectedAttributes(boruta.bank, withTentative = F)
 Makedecision <- TentativeRoughFix(boruta)  # help us to make quick decision
 print(Makedecision)
 #all confirmed except 'default'
@@ -495,7 +497,6 @@ print(results)
 predictors(results)
 #before discretisation: #all except 'default'
 #after discretisation: all
-rfRFE$rank
 
 # plot the results
 ggplot(data = results , metric = "Accuracy") 
@@ -551,7 +552,7 @@ for (i in 1:5) {
       cm$byClass["Recall"], 
       cm$byClass["Specificity"],
       cm$byClass["Precision"]))
-  colnames(metrics_cal) = c("Accuracy", "Recall", "Specificity","Precision","AUC")
+  colnames(metrics_cal) = c("Accuracy", "Recall", "Specificity","Precision")
   metrics_cal
   rf2_result[[i]] <- list(confusion = cm$table,MCC = m,Metric = metrics_cal)
 }
@@ -612,8 +613,7 @@ for (k in 1:4){
       c(cm$overall["Accuracy"], 
         cm$byClass["Recall"], 
         cm$byClass["Specificity"],
-        cm$byClass["Precision"],
-        roc_auc))
+        cm$byClass["Precision"]))
     colnames(metrics_cal) = c("Accuracy", "Recall", "Specificity","Precision")
     metrics_cal
     
@@ -2278,101 +2278,12 @@ dt_average_metrics4
 
 ####################### BUSINESS MODEL 1
 
-####################### MODEL 1: RAW #######################
-
-str(data)
-
-matthews_correlation_coefficient <- function(cm) {
-  tp <- as.numeric(cm[2, 2])
-  tn <- as.numeric(cm[1, 1])
-  fp <- as.numeric(cm[2, 1])
-  fn <- as.numeric(cm[1, 2])
-  mcc <- (tp * tn - fp * fn) / sqrt((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn))
-  return(mcc)
-}
-
-results1 <- list()
-
-set.seed(123)
-folds <- createFolds(data$y, k=5)
-
-library("ROSE")
-
-for(i in 1:5) {
-  # Split into training and validation set
-  train_data <- data[-folds[[i]],]
-  test_data <- data[folds[[i]],]
-  
-  # Check for class imbalance and use ROSE for oversampling if necessary
-  
-  #remove poutcome since 81.7% of observations is unknown
-  #remove default as per Boruta feature selection results
-  train_data <- subset(train_data,select = -c(default,poutcome))
-  str(train_data)
-  set.seed(123)
-  train_data1 <- ovun.sample(y ~ .,data = train_data, method = "over", N = 2*sum(train_data$y == "no"))$data
-  str(train_data)
-  
-  # laplace_tuning <- list(1,2,3,4,5)
-  
-  #train model
-  nb_model1 <- naiveBayes(y~ ., data = train_data) 
-  
-  #predict on test data and evaluate, then store 
-  nb_prediction1 <- predict(nb_model1, newdata = test_data)   
-  cm <- confusionMatrix(nb_prediction1, mode = "everything", reference = test_data$y, positive = "yes")
-  cm
-  #create MCC function and find MCC value, store in m. 
-  m <- matthews_correlation_coefficient(cm$table)
-  m
-  pred1_prob <- predict(nb_model1, newdata = test_data,type = "raw")
-  test_data$y <- ifelse(test_data$y == "yes", 1, 0)
-  roc_auc <- Metrics::auc(test_data$y,pred1_prob[,2])
-  metrics_cal = rbind(
-    c(cm$overall["Accuracy"], 
-      cm$byClass["Sensitivity"],
-      cm$byClass["Specificity"],
-      cm$byClass["Precision"],
-      roc_auc))
-  colnames(metrics_cal) = c("Accuracy", "Sensitivity", "Specificity","Precision","AUC")
-  metrics_cal
-  
-  #store confusion matrix and MCC
-  results1[[i]] <- list(confusion = cm$table,MCC = m,Metric = metrics_cal)
-}
-
-results1
-avg_mcc1 <- mean(sapply(results1, function(res) res$MCC))
-avg_accuracy <- mean(sapply(results1, function(res) res$Metric[,1]))
-avg_senstivity <- mean(sapply(results1, function(res) res$Metric[,2]))
-avg_specificity <- mean(sapply(results1, function(res) res$Metric[,3]))
-avg_precision <- mean(sapply(results1, function(res) res$Metric[,4]))
-avg_auc <- mean(sapply(results1, function(res) res$Metric[,5]))
-avg_mcc1
-avg_accuracy
-avg_senstivity
-avg_specificity
-avg_precision
-avg_auc
-
-# avg_mcc1
-# [1] 0.3936153
-# > avg_accuracy
-# [1] 0.8744993
-# > avg_senstivity
-# [1] 0.465302
-# > avg_specificity
-# [1] 0.9287108
-# > avg_precision
-# [1] 0.4641465
-# > avg_auc
-# [1] 0.8521787
-
-####################### MODEL: discretized all variables ##################################
+####################### MODEL 1: discretized all variables ##################################
 
 #analyse pattern using data, discretize variables using data1
 
-#discretize age
+#exploring how to discretize age
+str(data1)
 summary(data$age)
 #strange outlier of previous = 275. this means the bank called them 275 times previously! quite implausible
 #check top 10 highest values in previous
@@ -2390,6 +2301,7 @@ filter(data, age > 55 & age <=65)
 filter(data, age > 65 & age <=75) #490 customers
 filter(data, age > 75) #611 customers
 
+####################### discretize age ########################
 categories_age <- cut(data1$age, breaks = c(15,30, 45, 60, 75, 100),
                       labels = c("16_30y", "31_45y", "46y_60", "60_75y", "75y_plus"),
                       right = TRUE)
@@ -2397,7 +2309,9 @@ data1$age_disc <- data.frame(data1$age, categories_age)$categories_age
 CrossTable(data1$age_disc, data1$y)
 str(data1)
 
-#discretize balance
+#################################################################
+
+#exploring how to discretize balance
 summary(data$balance)
 #take a closer look at where most of the values of the records lie to gauge how to bin
 ggplot(data = data, aes(x = balance)) +geom_histogram() + xlim(-3000,8000)
@@ -2405,6 +2319,9 @@ ggplot(data = data, aes(x = balance)) +geom_histogram() + xlim(-3000,8000)
 filter(data, balance < 0) 
 filter(data, balance == 0)
 filter(data, balance > 0) 
+
+###################### discretize balance ##############################
+
 categories_balance <- cut(data1$balance, breaks = c(-9000,-1,0, 102128),
                           labels = c("negative", "zero", "positive"),
                           right = TRUE)
@@ -2412,7 +2329,9 @@ data1$balance_disc <- data.frame(data1$balance, categories_balance)$categories_b
 CrossTable(data1$balance_disc, data1$y)
 str(data1)
 
-#discretize duration
+####################################################################
+
+#exploring how to discretize duration
 summary(data$duration)
 ggplot(data = data, aes(x = duration)) +geom_histogram() + xlim(-1,500)
 #overly short conversation
@@ -2423,6 +2342,9 @@ filter(data, duration > 300 & duration <= 400)
 filter(data, duration > 400 & duration <= 500)
 filter(data, duration > 500 & duration <= 600)
 filter(data, duration > 600)
+
+###################### discretize duration #############################
+#discretize duration
 categories_duration <- cut(data1$duration, breaks = c(-1,100,200,300,400,500,600,5000),
                            labels = c("100s", "101_200s", "201_300s","301_400s","401_500s","501_600s","601s_plus"),
                            right = TRUE)
@@ -2430,17 +2352,23 @@ data1$duration_disc <- data.frame(data1$duration, categories_duration)$categorie
 CrossTable(data1$duration_disc, data1$y)
 str(data1)
 
+#######################################################################
+
+################## discretize day #####################################
 #discretize day
 data1$day <- as.factor(data1$day)
 str(data1)
+#######################################################################
 
-#discretize campaign
+#exploring how to discretize campaign
 summary(data$campaign)
 ggplot(data = data, aes(x = campaign)) +geom_histogram() + xlim(0,20)
 filter(data, campaign == 1)
 filter(data, campaign == 2)
 filter(data,campaign == 3)
 filter(data,campaign > 3)
+
+################# discretize campaign ################################
 categories_campaign <- cut(data1$campaign, breaks = c(0,1,2,3,65),
                            labels = c("1call", "2call", "3call","4call_plus"),
                            right = TRUE)
@@ -2448,22 +2376,7 @@ data1$campaign_disc <- data.frame(data1$campaign, categories_campaign)$categorie
 CrossTable(data1$campaign_disc, data$y)
 str(data1)
 
-#discretizing pdays into 5 categories in new variable pdays_disc
-categories_pdays <- cut(data1$pdays, breaks = c(-2, -1, 90, 180, 270, 871),
-                        labels = c("nc", "1_90d", "91_180d", "181_270d", "271d_plus"),
-                        right = TRUE)
-data1$pdays_disc <- data.frame(data1$pdays, categories_pdays)$categories_pdays
-str(data1)
-CrossTable(data1$pdays_disc, data1$y)
-
-
-#discretizing previous into categories: 1,2,3,4,5,6,7 >7 in new variable previous_disc
-categories_previous <- cut(data1$previous, breaks = c(-1,0, 1, 2, 3, 4, 5, 6, 7, 275),
-                           labels = c("nc", "1c", "2c", "3c", "4c", "5c", "6c", "7c", "8c_plus"),
-                           right = TRUE)
-data1$previous_disc <- data.frame(data1$previous, categories_previous)$categories_previous
-CrossTable(data1$previous_disc, data1$y)
-str(data1)
+#######################################################################
 
 # Prepare for 5-fold cross-validation
 data1 <- subset(data1, select = c(job,marital,education,housing,loan,contact,day,month,default,poutcome,y,pdays_disc,previous_disc,age_disc,balance_disc,duration_disc,campaign_disc))
@@ -2501,7 +2414,7 @@ for(i in 1:5) {
   
   
   #train model
-  nb_model2 <- naiveBayes(y~ ., data = train_data1,laplace=1) 
+  nb_model2 <- naiveBayes(y~ ., data = train_data1) 
   
   #predict on test data and evaluate, then store 
   nb_prediction2 <- predict(nb_model2, newdata = test_data1)
@@ -2644,7 +2557,6 @@ nb_results3tune
 
 summary(data$contact)
 
-
 #use laplace = 3, then tune by removing feature previous_disc that has strong association with pdays_disc
 
 #ascertain that cramersV is moderately large for previous_disc and pdays_disc
@@ -2674,7 +2586,6 @@ for(i in 1:5) {
   # Split into training and validation set
   train_data1 <- data1[-folds[[i]],]
   test_data1 <- data1[folds[[i]],]
-  
   
   
   train_data1 <- subset(train_data1,select = -c(default,poutcome,previous_disc))
@@ -2794,7 +2705,7 @@ for(i in 1:5) {
 }
 
 nb_results3
-avg_mcc3 <- mean(sapply(results3, function(res) res$MCC))
+avg_mcc3 <- mean(sapply(nb_results3, function(res) res$MCC))
 avg_accuracy3 <- mean(sapply(nb_results3, function(res) res$Metric[,1]))
 avg_senstivity3 <- mean(sapply(nb_results3, function(res) res$Metric[,2]))
 avg_specificity3 <- mean(sapply(nb_results3, function(res) res$Metric[,3]))
@@ -3066,20 +2977,7 @@ avg_specificity3
 avg_precision3
 avg_auc3 
 
-# avg_mcc3
-# [1] 0.2605938
-# > avg_accuracy3
-# [1] 0.7082347
-# > avg_senstivity3
-# [1] 0.66799
-# > avg_specificity3
-# [1] 0.7135665
-# > avg_precision3
-# [1] 0.236034
-# > avg_auc3 
-# [1] 0.7516892
-
-#removing correlated feature worsens performance. 
+#removing correlated feature worsens performance, do not remove.
 
 ################# BM2 AFTER IMPROVEMENT: ONLY TUNING LAPLACE = 5 ##################
 
