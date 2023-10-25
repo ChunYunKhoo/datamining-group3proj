@@ -2111,9 +2111,8 @@ for(i in 1:5) {
     c(cm$overall["Accuracy"], 
       cm$byClass["Recall"], 
       cm$byClass["Specificity"],
-      cm$byClass["Precision"],
-      roc_auc))
-  colnames(metrics_cal) = c("Accuracy", "Recall", "Specificity","Precision","AUC")
+      cm$byClass["Precision"]))
+  colnames(metrics_cal) = c("Accuracy", "Recall", "Specificity","Precision")
   metrics_cal
   dt_result1[[i]] <- list(confusion = cm$table,MCC = m,Metric = metrics_cal)
 }
@@ -2125,8 +2124,8 @@ dt_avg_mcc1
 #average_metrics
 dt_average_metrics1 <- colMeans(do.call(rbind, lapply(dt_result1, function(x) x$Metric)))
 dt_average_metrics1
-#Accuracy      Recall.   Specificity   Precision         AUC 
-#0.8705847    0.6186396   0.9039628   0.4603018      0.8930833 
+#Accuracy      Recall.   Specificity   Precision     
+#0.8705847    0.6186396   0.9039628   0.4603018      
 
 ###############model 1 Boosting#####################
 #decision tree 2nd model
@@ -2160,9 +2159,8 @@ for(i in 1:5) {
     c(cm$overall["Accuracy"], 
       cm$byClass["Recall"], 
       cm$byClass["Specificity"],
-      cm$byClass["Precision"],
-      roc_auc))
-  colnames(metrics_cal) = c("Accuracy", "Recall", "Specificity","Precision","AUC")
+      cm$byClass["Precision"]))
+  colnames(metrics_cal) = c("Accuracy", "Recall", "Specificity","Precision")
   metrics_cal
   dt_result1boost[[i]] <- list(confusion = cm$table,MCC = m,Metric = metrics_cal)
 }
@@ -2173,8 +2171,8 @@ dt_avg_mcc2##0.4990969
 #average_metrics
 dt_average_metrics2 <- colMeans(do.call(rbind, lapply(dt_result1boost, function(x) x$Metric)))
 dt_average_metrics2
-#   Accuracy   Recall    Specificity   Precision         AUC 
-# 0.8940746   0.5738318   0.9365012    0.5449931     0.9080191 
+#   Accuracy   Recall    Specificity   Precision      
+# 0.8940746   0.5738318   0.9365012    0.5449931     
 
 
 ############Business model 2 for decision tree################################################
@@ -2211,9 +2209,8 @@ for(i in 1:5) {
     c(cm$overall["Accuracy"], 
       cm$byClass["Recall"], 
       cm$byClass["Specificity"],
-      cm$byClass["Precision"],
-      roc_auc))
-  colnames(metrics_cal) = c("Accuracy", "Recall", "Specificity","Precision","AUC")
+      cm$byClass["Precision"]))
+  colnames(metrics_cal) = c("Accuracy", "Recall", "Specificity","Precision")
   metrics_cal
   dt_result2[[i]] <- list(confusion = cm$table,MCC = m,Metric = metrics_cal)
 }
@@ -2225,8 +2222,8 @@ dt_avg_mcc3
 #average_metrics
 dt_average_metrics3 <- colMeans(do.call(rbind, lapply(dt_result2, function(x) x$Metric)))
 dt_average_metrics3
-#Accuracy      Recall   Specificity   Precision         AUC 
-#0.8065515   0.3974266   0.8607534   0.2743311       0.7156306 
+#Accuracy      Recall   Specificity   Precision      
+#0.8065515   0.3974266   0.8607534   0.2743311    
 
 
 
@@ -2261,9 +2258,8 @@ for(i in 1:5) {
     c(cm$overall["Accuracy"], 
       cm$byClass["Recall"], 
       cm$byClass["Specificity"],
-      cm$byClass["Precision"],
-      roc_auc))
-  colnames(metrics_cal) = c("Accuracy", "Recall", "Specificity","Precision","AUC")
+      cm$byClass["Precision"]))
+  colnames(metrics_cal) = c("Accuracy", "Recall", "Specificity","Precision")
   metrics_cal
   dt_result2boost[[i]] <- list(confusion = cm$table,MCC = m,Metric = metrics_cal)
 }
@@ -2275,8 +2271,8 @@ dt_avg_mcc4
 #average_metrics
 dt_average_metrics4 <- colMeans(do.call(rbind, lapply(dt_result2boost, function(x) x$Metric)))
 dt_average_metrics4
-#Accuracy      Recall    Specificity   Precision         AUC 
-#0.8708722    0.3197166   0.9438907    0.4302007     0.9815806
+#Accuracy      Recall    Specificity   Precision        
+#0.8708722    0.3197166   0.9438907    0.4302007     
 
 #####################################  NAIVE BAYES CLASSFIER  #############################
 
