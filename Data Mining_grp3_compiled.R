@@ -1352,7 +1352,7 @@ metrics_BM2
 #A good model will have a high AUC, 
 #that is as often as possible a high sensitivity and specificity.
 #balanced trade-off between sensitivity and specificity, 
-##when c=0.9 seems to be a good choice
+##when c=0.7 seems to be a good choice
 #It has reasonably high sensitivity, specificity as well as accuracy
 
 ###################Logistic Regression ##############################
@@ -2752,7 +2752,7 @@ for(i in 1:5) {
   # Check for class imbalance and use ROSE for oversampling if necessary
   
   train_data1 <- subset(train_data1,select = -c(default,poutcome,duration_disc,campaign_disc))
-  # test_data1 <- subset(test_data1,select = -c(default,poutcome))
+ 
   str(train_data1)
   set.seed(123)
   train_data1 <- ovun.sample(y ~ .,data = train_data1, method = "over", N = 2*sum(train_data1$y == "no"))$data
