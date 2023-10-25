@@ -1575,7 +1575,7 @@ if (file.exists(results_file1)) {
   accuracy_list1 <- results1$accuracy_list
   sensitivity_list1 <- results1$sensitivity_list
   specificity_list1 <- results1$specificity_list
-  auc_list1 <- results1$auc_list
+  #auc_list1 <- results1$auc_list
 } else {
   # If no previous results, compute them
   set.seed(123)
@@ -1584,7 +1584,7 @@ if (file.exists(results_file1)) {
   accuracy_list <- vector("numeric", length(folds))
   specificity_list <- vector("numeric", length(folds))
   sensitivity_list <- vector("numeric", length(folds))
-  auc_list <- vector("numeric", length(folds))
+  #auc_list <- vector("numeric", length(folds))
   
   # Loop through each fold
   for(i in 1:5) {
@@ -1605,15 +1605,15 @@ if (file.exists(results_file1)) {
     predictions <- predict(model, test_data)
     
     # Convert class predictions to binary format for AUC computation
-    binary_predictions <- ifelse(predictions == "yes", 1, 0)
-    binary_true_labels <- ifelse(test_data$y == "yes", 1, 0)
+    #binary_predictions <- ifelse(predictions == "yes", 1, 0)
+    #binary_true_labels <- ifelse(test_data$y == "yes", 1, 0)
     
     # Compute AUC using ROCR
-    library(ROCR)
-    pred <- prediction(binary_predictions, binary_true_labels)
-    perf <- performance(pred, measure = "auc")
-    auc <- as.numeric(perf@y.values)
-    auc_list[i] <- auc
+    #library(ROCR)
+    #pred <- prediction(binary_predictions, binary_true_labels)
+    #perf <- performance(pred, measure = "auc")
+    #auc <- as.numeric(perf@y.values)
+    #auc_list[i] <- auc
     
     # Compute confusion matrix
     cm_obj <- confusionMatrix(predictions, test_data$y)
@@ -1635,7 +1635,7 @@ if (file.exists(results_file1)) {
     cat(sprintf("Accuracy: %f\n", accuracy))
     cat(sprintf("Sensitivity: %f\n", sensitivity))
     cat(sprintf("Specificity: %f\n", specificity))
-    cat(sprintf("AUC: %f\n", auc))
+    #cat(sprintf("AUC: %f\n", auc))
     cat("------------------------------\n")
   }
   
@@ -1645,7 +1645,7 @@ if (file.exists(results_file1)) {
     accuracy_list = accuracy_list,
     sensitivity_list = sensitivity_list,
     specificity_list = specificity_list,
-    auc_list = auc_list
+    #auc_list = auc_list
   )
   saveRDS(results1, results_file1)
 }
@@ -1655,7 +1655,7 @@ avg_mcc1 <- mean(mcc_list)
 avg_accuracy1 <- mean(accuracy_list)
 avg_sensitivity1 <- mean(sensitivity_list)
 avg_specificity1 <- mean(specificity_list)
-avg_auc1 <- mean(auc_list)
+#avg_auc1 <- mean(auc_list)
 
 # Display average results
 cat(sprintf("Average MCC: %f\n", avg_mcc1))  
@@ -1667,7 +1667,6 @@ cat(sprintf("Average AUC: %f\n", avg_auc1))
 #Average Accuracy: 0.831125
 #Average Sensitivity: 0.824458
 #Average Specificity: 0.881452
-#Average AUC: 0.852955
 ###############################tuning Business model1########################
 # Specify the file to store or retrieve results
 results_file2 <- "my_results2.rds"
@@ -1755,15 +1754,15 @@ if (file.exists(results_file2)) {
     predictions <- predict(model, test_data)
     
     # Convert class predictions to binary format for AUC computation
-    binary_predictions <- ifelse(predictions == "yes", 1, 0)
-    binary_true_labels <- ifelse(test_data$y == "yes", 1, 0)
+    #binary_predictions <- ifelse(predictions == "yes", 1, 0)
+    #binary_true_labels <- ifelse(test_data$y == "yes", 1, 0)
     
     # Compute AUC using ROCR
-    library(ROCR)
-    pred <- prediction(binary_predictions, binary_true_labels)
-    perf <- performance(pred, measure = "auc")
-    auc <- as.numeric(perf@y.values)
-    auc_list[i] <- auc
+    #library(ROCR)
+    #pred <- prediction(binary_predictions, binary_true_labels)
+    #perf <- performance(pred, measure = "auc")
+    #auc <- as.numeric(perf@y.values)
+    #auc_list[i] <- auc
     
     # Compute confusion matrix
     cm_obj <- confusionMatrix(predictions, test_data$y)
@@ -1785,7 +1784,7 @@ if (file.exists(results_file2)) {
     cat(sprintf("Accuracy: %f\n", accuracy))
     cat(sprintf("Sensitivity: %f\n", sensitivity))
     cat(sprintf("Specificity: %f\n", specificity))
-    cat(sprintf("AUC: %f\n", auc))
+    #cat(sprintf("AUC: %f\n", auc))
     cat("------------------------------\n")
   }
   
@@ -1812,12 +1811,10 @@ cat(sprintf("Average MCC: %f\n", avg_mcc2))
 cat(sprintf("Average Accuracy: %f\n", avg_accuracy2))
 cat(sprintf("Average Sensitivity: %f\n", avg_sensitivity2))
 cat(sprintf("Average Specificity: %f\n", avg_specificity2))
-cat(sprintf("Average AUC: %f\n", avg_auc2))
 #Average MCC: 0.533213
 #Average Accuracy: 0.847559
 #Average Sensitivity: 0.846075
 #Average Specificity: 0.858762
-#Average AUC: 0.852418
 
 
 ########################################Business Model 2, remove duration and campaign########################
@@ -1834,7 +1831,7 @@ if (file.exists(results_file3)) {
   accuracy_list3 <- results3$accuracy_list
   sensitivity_list3 <- results3$sensitivity_list
   specificity_list3 <- results3$specificity_list
-  auc_list3 <- results3$auc_list
+  #auc_list3 <- results3$auc_list
 } else {
   # If no previous results, compute them
   set.seed(123)
@@ -1843,7 +1840,7 @@ if (file.exists(results_file3)) {
   accuracy_list <- vector("numeric", length(folds))
   specificity_list <- vector("numeric", length(folds))
   sensitivity_list <- vector("numeric", length(folds))
-  auc_list <- vector("numeric", length(folds))
+  #auc_list <- vector("numeric", length(folds))
   
   # Loop through each fold
   for(i in 1:5) {
@@ -1870,11 +1867,11 @@ if (file.exists(results_file3)) {
     binary_true_labels <- ifelse(test_data$y == "yes", 1, 0)
     
     # Compute AUC using ROCR
-    library(ROCR)
-    pred <- prediction(binary_predictions, binary_true_labels)
-    perf <- performance(pred, measure = "auc")
-    auc <- as.numeric(perf@y.values)
-    auc_list[i] <- auc
+    #library(ROCR)
+    #pred <- prediction(binary_predictions, binary_true_labels)
+    #perf <- performance(pred, measure = "auc")
+    #auc <- as.numeric(perf@y.values)
+    #auc_list[i] <- auc
     
     # Compute confusion matrix
     cm_obj <- confusionMatrix(predictions, test_data$y)
@@ -1906,7 +1903,7 @@ if (file.exists(results_file3)) {
     accuracy_list = accuracy_list,
     sensitivity_list = sensitivity_list,
     specificity_list = specificity_list,
-    auc_list = auc_list
+    #auc_list = auc_list
   )
   saveRDS(results3, results_file3)
 }
@@ -1916,7 +1913,7 @@ avg_mcc3 <- mean(mcc_list)
 avg_accuracy3 <- mean(accuracy_list)
 avg_sensitivity3 <- mean(sensitivity_list)
 avg_specificity3 <- mean(specificity_list)
-avg_auc3 <- mean(auc_list)
+#avg_auc3 <- mean(auc_list)
 
 # Display average results
 cat(sprintf("Average MCC: %f\n", avg_mcc3))
@@ -1944,7 +1941,7 @@ if (file.exists(results_file4)) {
   accuracy_list4 <- results4$accuracy_list
   sensitivity_list4 <- results4$sensitivity_list
   specificity_list4 <- results4$specificity_list
-  auc_list4 <- results4$auc_list
+  #auc_list4 <- results4$auc_list
 } else {
   # If no previous results, compute them
   set.seed(123)
@@ -1953,7 +1950,7 @@ if (file.exists(results_file4)) {
   accuracy_list <- vector("numeric", length(folds))
   specificity_list <- vector("numeric", length(folds))
   sensitivity_list <- vector("numeric", length(folds))
-  auc_list <- vector("numeric", length(folds))
+  #auc_list <- vector("numeric", length(folds))
   
   # Tuning ranges
   C_values <- c(0.1, 1, 10)
@@ -2017,15 +2014,15 @@ if (file.exists(results_file4)) {
     predictions <- predict(model, test_data)
     
     # Convert class predictions to binary format for AUC computation
-    binary_predictions <- ifelse(predictions == "yes", 1, 0)
-    binary_true_labels <- ifelse(test_data$y == "yes", 1, 0)
+    #binary_predictions <- ifelse(predictions == "yes", 1, 0)
+    #binary_true_labels <- ifelse(test_data$y == "yes", 1, 0)
     
     # Compute AUC using ROCR
-    library(ROCR)
-    pred <- prediction(binary_predictions, binary_true_labels)
-    perf <- performance(pred, measure = "auc")
-    auc <- as.numeric(perf@y.values)
-    auc_list[i] <- auc
+    #library(ROCR)
+    #pred <- prediction(binary_predictions, binary_true_labels)
+    #perf <- performance(pred, measure = "auc")
+    #auc <- as.numeric(perf@y.values)
+    #auc_list[i] <- auc
     
     # Compute confusion matrix
     cm_obj <- confusionMatrix(predictions, test_data$y)
@@ -2047,7 +2044,7 @@ if (file.exists(results_file4)) {
     cat(sprintf("Accuracy: %f\n", accuracy))
     cat(sprintf("Sensitivity: %f\n", sensitivity))
     cat(sprintf("Specificity: %f\n", specificity))
-    cat(sprintf("AUC: %f\n", auc))
+    #cat(sprintf("AUC: %f\n", auc))
     cat("------------------------------\n")
   }
   
@@ -2057,7 +2054,7 @@ if (file.exists(results_file4)) {
     accuracy_list = accuracy_list,
     sensitivity_list = sensitivity_list,
     specificity_list = specificity_list,
-    auc_list = auc_list
+    #auc_list = auc_list
   )
   saveRDS(results4, results_file4)
 }
@@ -2067,21 +2064,20 @@ avg_mcc4 <- mean(mcc_list)
 avg_accuracy4 <- mean(accuracy_list)
 avg_sensitivity4 <- mean(sensitivity_list)
 avg_specificity4 <- mean(specificity_list)
-avg_auc4 <- mean(auc_list)
+#avg_auc4 <- mean(auc_list)
 
 # Display average results
 cat(sprintf("Average MCC: %f\n", avg_mcc4))
 cat(sprintf("Average Accuracy: %f\n", avg_accuracy4))
 cat(sprintf("Average Sensitivity: %f\n", avg_sensitivity4))
 cat(sprintf("Average Specificity: %f\n", avg_specificity4))
-cat(sprintf("Average AUC: %f\n", avg_auc4))
+#cat(sprintf("Average AUC: %f\n", avg_auc4))
 
 #(Best C: 1.000000, Best Sigma: 0.100000) for all folds
 #Average MCC: 0.358038
 #Average Accuracy: 0.821570
 #Average Sensitivity: 0.851736
 #Average Specificity: 0.593875
-#Average AUC: 0.722806
 #decision tree 1st model
 #5-fold cross-validation
 set.seed(123)
